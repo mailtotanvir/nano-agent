@@ -1,5 +1,8 @@
 # nano-agent
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22293159.svg)](https://doi.org/10.5281/zenodo.22293159)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+
 A cookbook of **tiny, verified repair agents**. Each recipe pairs a small
 open-weight model (0.1B–1.5B) with a deterministic controller that loops a real
 tool's verifier — compile, diagnose, patch, re-verify — and escalates to a
@@ -79,6 +82,17 @@ cargo test --workspace   # unit + e2e (e2e needs cargo on PATH)
 cargo fmt --check
 cargo clippy --workspace -- -D warnings
 ```
+
+## Paper & citation
+
+The accompanying technical report is in [`paper/nano-agent.pdf`](paper/nano-agent.pdf).
+An archived, citable snapshot of this repository is on Zenodo:
+
+> Ahmed, T. (2026). *nano-agent: A Tiny Model Beats Its Teacher — Verified-Loop
+> Repair with a Sub-1B Language Model.* Zenodo. https://doi.org/10.5281/zenodo.22293159
+
+DOI (all versions): [`10.5281/zenodo.22293159`](https://doi.org/10.5281/zenodo.22293159).
+See [`CITATION.cff`](CITATION.cff).
 
 ## License
 

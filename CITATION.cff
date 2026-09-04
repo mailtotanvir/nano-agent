@@ -5,6 +5,7 @@ authors:
   - family-names: Ahmed
     given-names: Tanvir
 repository-code: "https://github.com/mailtotanvir/nano-agent"
+doi: "10.5281/zenodo.22293159"
 license: Apache-2.0
 version: "0.1.0"
 date-released: "2026-09-04"
