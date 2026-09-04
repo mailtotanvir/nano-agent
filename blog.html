@@ -202,6 +202,38 @@
   .mermaid { background:#05090B; padding:26px 18px; overflow-x:auto; display:flex; justify-content:center; }
   .mermaid svg { max-width:100%; height:auto; }
 
+  /* ---------- OOD crossover chart (hand-built SVG) ---------- */
+  .chartwrap { background:#05090B; padding: 14px 12px 4px; }
+  .chartwrap svg { width:100%; height:auto; display:block; }
+  .chartwrap text { font-family: var(--mono); }
+  .c-axl { fill: var(--faint); font-size: 11px; }
+  .c-ytitle { fill: var(--faint); font-size: 10.5px; letter-spacing:.16em; }
+  .c-stg { fill: var(--text); font-family: var(--display); font-weight:700; font-size: 15px; }
+  .c-stgsub { fill: var(--faint); font-size: 9.5px; }
+  .c-refl { fill: var(--faint); font-size: 10px; }
+  .c-teacherl { fill: var(--violet); font-size: 11px; font-weight:600; }
+  .c-annot { fill: var(--text); font-family: var(--display); font-size: 13px; font-weight:700; }
+  .c-annotsub { fill: var(--dim); font-size: 10px; }
+  .c-val { font-family: var(--display); font-weight:700; font-size: 16px; }
+  .c-grid { stroke: rgba(159,187,182,.09); stroke-width:1; }
+  .c-refline { stroke: var(--faint); stroke-dasharray: 2 6; stroke-width:1.3; fill:none; opacity:.55; }
+  .c-teacher { stroke: var(--violet); stroke-dasharray: 8 5; stroke-width:2; fill:none; }
+  .c-leader { stroke: var(--dim); stroke-width:1; fill:none; }
+  .c-nano { stroke: url(#nanoGrad); stroke-width:3.4; fill:none; stroke-linecap:round; stroke-linejoin:round;
+            stroke-dasharray: 480; stroke-dashoffset: 480; }
+  #ood-chart.in .c-nano { animation: cdraw 1.6s ease forwards; }
+  @keyframes cdraw { to { stroke-dashoffset: 0; } }
+  .c-fade { opacity: 0; }
+  #ood-chart.in .c-fade { animation: cfade .6s ease forwards; }
+  @keyframes cfade { to { opacity: 1; } }
+  .chart-legend { display:flex; gap:22px; flex-wrap:wrap; padding:12px 16px 6px;
+                  font-family:var(--mono); font-size:11px; color:var(--dim); }
+  .chart-legend span { display:flex; align-items:center; gap:9px; }
+  .chart-legend i { width:20px; height:0; display:inline-block; }
+  .lg-nano  { border-top:3px solid var(--green); }
+  .lg-teach { border-top:3px dashed var(--violet); }
+  .lg-front { border-top:2px dotted var(--faint); }
+
   details { background: var(--card); border: 1px solid var(--line); border-radius: 14px; margin: 20px 0; overflow: hidden; }
   summary { cursor: pointer; list-style: none; padding: 17px 24px; font-family: var(--mono); font-size: 13.5px; color: var(--cyan); display: flex; align-items: center; gap: 10px; user-select: none; }
   summary::-webkit-details-marker { display: none; }
@@ -459,6 +491,83 @@ flowchart TB
 <p>Then one more experiment, because I wanted to know what was capping the score: the model, or the teacher? I reran the same curriculum on the same ten failing classes, but this time distilled from a genuine frontier teacher (a model that solves 100% of the OOD set) instead of Gemini Flash. The out-of-distribution score went from 60% to <strong>72%</strong>. A stronger teacher is a real lever on structural generalization. But notice the jump is bounded, and that boundary is the most honest part of the whole result.</p>
 
 <div style="overflow-x:auto">
+<div id="ood-chart" class="mermaid-frame">
+  <div class="frame-bar"><span class="dot"></span><span>out-of-distribution accuracy · per training round</span><span class="live">frozen eval · 25 held-out cases</span></div>
+  <div class="chartwrap">
+    <svg viewBox="0 0 720 372" role="img" aria-label="Line chart: the trained 0.5B model's out-of-distribution accuracy rises 44 to 60 to 72 percent across training rounds, crossing the Gemini Flash teacher's flat 56 percent bar between the v2 and v3 rounds.">
+      <defs>
+        <linearGradient id="nanoGrad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stop-color="#4FD6E0"/>
+          <stop offset="1" stop-color="#46E39B"/>
+        </linearGradient>
+        <radialGradient id="crossGlow"><stop offset="0" stop-color="#FFC46B" stop-opacity=".9"/><stop offset="1" stop-color="#FFC46B" stop-opacity="0"/></radialGradient>
+      </defs>
+
+      <!-- gridlines + y labels (0..100) -->
+      <line class="c-grid" x1="90" y1="320" x2="660" y2="320"/>
+      <line class="c-grid" x1="90" y1="264" x2="660" y2="264"/>
+      <line class="c-grid" x1="90" y1="208" x2="660" y2="208"/>
+      <line class="c-grid" x1="90" y1="152" x2="660" y2="152"/>
+      <line class="c-grid" x1="90" y1="96"  x2="660" y2="96"/>
+      <line class="c-grid" x1="90" y1="40"  x2="660" y2="40"/>
+      <text class="c-axl" x="78" y="324" text-anchor="end">0</text>
+      <text class="c-axl" x="78" y="212" text-anchor="end">40</text>
+      <text class="c-axl" x="78" y="156" text-anchor="end">60</text>
+      <text class="c-axl" x="78" y="100" text-anchor="end">80</text>
+      <text class="c-axl" x="78" y="44"  text-anchor="end">100</text>
+      <text class="c-ytitle" x="24" y="188" text-anchor="middle" transform="rotate(-90 24 188)">OOD ACCURACY %</text>
+
+      <!-- frontier reference lines (faint) -->
+      <line class="c-refline c-fade" x1="90" y1="40"  x2="660" y2="40"/>
+      <text class="c-refl c-fade" x="656" y="34" text-anchor="end">frontier 100%</text>
+      <line class="c-refline c-fade" x1="90" y1="84.8" x2="660" y2="84.8"/>
+      <text class="c-refl c-fade" x="656" y="79" text-anchor="end">DeepSeek-V4 84%</text>
+      <line class="c-refline c-fade" x1="90" y1="107.2" x2="660" y2="107.2"/>
+      <text class="c-refl c-fade" x="380" y="102" text-anchor="end">grok 76%</text>
+
+      <!-- teacher bar (the line to beat) -->
+      <line class="c-teacher" x1="90" y1="163.2" x2="660" y2="163.2"/>
+      <text class="c-teacherl c-fade" x="96" y="180">Gemini Flash teacher · 56% — the bar</text>
+
+      <!-- crossover marker -->
+      <circle class="c-fade" cx="357.5" cy="163.2" r="26" fill="url(#crossGlow)"/>
+      <line class="c-leader c-fade" x1="357.5" y1="163.2" x2="357.5" y2="250"/>
+      <circle class="c-fade" cx="357.5" cy="163.2" r="5.5" fill="#FFC46B"/>
+      <text class="c-annot c-fade" x="357.5" y="268" text-anchor="middle">the crossover</text>
+      <text class="c-annotsub c-fade" x="357.5" y="284" text-anchor="middle">student passes teacher, mid-curriculum</text>
+
+      <!-- nano polyline: v2(44) v3(60) v4(72) -->
+      <polyline class="c-nano" points="200,196.8 410,152 620,118.4"/>
+
+      <!-- nano points + value labels -->
+      <g class="c-fade">
+        <circle cx="200" cy="196.8" r="6" fill="#4FD6E0"/>
+        <text class="c-val" x="200" y="188" text-anchor="middle" fill="#FF7A8A">44%</text>
+        <circle cx="410" cy="152" r="6" fill="#43DEB0"/>
+        <text class="c-val" x="410" y="143" text-anchor="middle" fill="#46E39B">60%</text>
+        <circle cx="620" cy="118.4" r="7" fill="#46E39B"/>
+        <text class="c-val" x="620" y="108" text-anchor="middle" fill="#46E39B">72%</text>
+      </g>
+
+      <!-- x stage labels -->
+      <text class="c-stg" x="200" y="344" text-anchor="middle">v2</text>
+      <text class="c-stgsub" x="200" y="358" text-anchor="middle">single-site SFT</text>
+      <text class="c-stg" x="410" y="344" text-anchor="middle">v3</text>
+      <text class="c-stgsub" x="410" y="358" text-anchor="middle">+ Flash curriculum</text>
+      <text class="c-stg" x="620" y="344" text-anchor="middle">v4</text>
+      <text class="c-stgsub" x="620" y="358" text-anchor="middle">+ frontier curriculum</text>
+    </svg>
+  </div>
+  <div class="chart-legend">
+    <span><i class="lg-nano"></i> trained 0.5B (nano)</span>
+    <span><i class="lg-teach"></i> Gemini Flash teacher</span>
+    <span><i class="lg-front"></i> frontier baselines</span>
+  </div>
+</div>
+
+<details>
+  <summary>Show the full comparison table</summary>
+  <div class="inner">
 <table>
   <thead><tr><th>Model</th><th>OOD rate</th><th>Role</th></tr></thead>
   <tbody>
@@ -471,6 +580,8 @@ flowchart TB
     <tr class="row-hero"><td>Trained 0.5B · v4 (+ frontier curriculum)</td><td class="win">72% (18/25)</td><td>+16 over the teacher bar</td></tr>
   </tbody>
 </table>
+  </div>
+</details>
 </div>
 
 <p>A 0.5B model, quantized to a 600MB file, running on four ARM CPU cores with no GPU, scoring 72% on held-out structural repair. Sixteen points clear of the flash-class model that generated its training data. That is the headline, and it is a real, frozen-eval number.</p>
@@ -594,6 +705,15 @@ cat trajectories.jsonl</code></pre>
     });
   }, { rootMargin: '-20% 0px -65% 0px' });
   targets.forEach(t => spy.observe(t));
+
+  // ---------- OOD chart: animate line draw + labels on scroll into view ----------
+  const chart = document.getElementById('ood-chart');
+  if (chart) {
+    const cspy = new IntersectionObserver((entries, obs) => {
+      entries.forEach(e => { if (e.isIntersecting) { chart.classList.add('in'); obs.disconnect(); } });
+    }, { threshold: 0.35 });
+    cspy.observe(chart);
+  }
 
   // ---------- repair loop stepper ----------
   // A faithful re-enactment of the controller state machine on one E0308-class case.
