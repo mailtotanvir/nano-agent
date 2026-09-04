@@ -1,0 +1,36 @@
+{
+  "model": "qwen05-sft-v2",
+  "arm": "tiny_loop",
+  "solved": 11,
+  "n": 25,
+  "rate": 0.44,
+  "solved_ids": [
+    "ood_arg_count",
+    "ood_enum_variant",
+    "ood_float_mix",
+    "ood_hashmap_get",
+    "ood_int_cast",
+    "ood_parse_method",
+    "ood_push_immut",
+    "ood_question_unit",
+    "ood_ref_arg",
+    "ood_semicolon_real",
+    "ood_slice_bounds"
+  ],
+  "failed_ids": [
+    "ood_clone_needed",
+    "ood_derive_eq",
+    "ood_generic_bound",
+    "ood_index_type",
+    "ood_iter_collect",
+    "ood_macro_name",
+    "ood_match_arms",
+    "ood_move_use",
+    "ood_option_unwrap",
+    "ood_string_return",
+    "ood_trailing_semi",
+    "ood_trait_impl",
+    "ood_trait_method",
+    "ood_trait_scope"
+  ]
+}

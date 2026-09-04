@@ -1,0 +1,23 @@
+{
+  "dataset": "train_pool_v2",
+  "corpus": "corpus_v2.jsonl (450 verified cases from 299 seeds: 49 static + 250 parametric)",
+  "seed_generator": "seed_gen.py (14 templates, seed-gen-seed=0)",
+  "eval_excluded": "45 frozen eval_v1 ids (23 overlapped corpus, removed)",
+  "train_pool_size": 427,
+  "leak_check": "train case_ids disjoint from frozen eval_ids (manifest.json)",
+  "categories": {
+    "missing_semicolon": 91,
+    "unknown_method": 88,
+    "undeclared_ident": 65,
+    "missing_mut": 39,
+    "missing_import": 29,
+    "wrong_arg_type": 26,
+    "type_mismatch": 21,
+    "wrong_field_name": 21,
+    "bool_as_int": 20,
+    "missing_type_annotation": 16,
+    "missing_derive": 10,
+    "return_type_mismatch": 1
+  },
+  "note": "eval_v1 unchanged; baselines (frontier 84.4%, untrained tiny 0%) stay comparable"
+}

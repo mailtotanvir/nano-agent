@@ -1,0 +1,10 @@
+# GBNF grammar constraining the tiny model to the JSON proposal contract.
+# Pass to llama.cpp via --grammar-file or the `grammar` request field.
+# Guarantees sub-1B models emit only valid, contract-shaped JSON.
+
+root   ::= "{" ws "\"action\"" ws ":" ws action ws "," ws "\"patch\"" ws ":" ws patch ws "," ws "\"reason\"" ws ":" ws string ws "," ws "\"confidence\"" ws ":" ws number ws "}"
+action ::= "\"patch\"" | "\"no_fix\"" | "\"escalate\""
+patch  ::= string | "null"
+string ::= "\"" ( [^"\\] | "\\" . )* "\""
+number ::= "0" | "0." [0-9]+ | "1" | "1.0"
+ws     ::= [ \t\n]*

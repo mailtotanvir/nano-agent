@@ -1,0 +1,191 @@
+{
+  "summary": {
+    "tiny_loop": {
+      "solved": 15,
+      "n": 25,
+      "rate": 0.6,
+      "elapsed_s": 151.4
+    }
+  },
+  "per_case": {
+    "tiny_loop": [
+      {
+        "case_id": "ood_iter_collect",
+        "category": "type_mismatch",
+        "solved": false,
+        "attempts": 4,
+        "latency_ms": null
+      },
+      {
+        "case_id": "ood_move_use",
+        "category": "borrow",
+        "solved": true,
+        "attempts": 1,
+        "latency_ms": null
+      },
+      {
+        "case_id": "ood_ref_arg",
+        "category": "type_mismatch",
+        "solved": true,
+        "attempts": 1,
+        "latency_ms": null
+      },
+      {
+        "case_id": "ood_question_unit",
+        "category": "error_handling",
+        "solved": true,
+        "attempts": 1,
+        "latency_ms": null
+      },
+      {
+        "case_id": "ood_trait_method",
+        "category": "unknown_method",
+        "solved": false,
+        "attempts": 4,
+        "latency_ms": null
+      },
+      {
+        "case_id": "ood_int_cast",
+        "category": "type_mismatch",
+        "solved": true,
+        "attempts": 1,
+        "latency_ms": null
+      },
+      {
+        "case_id": "ood_trait_scope",
+        "category": "missing_import",
+        "solved": false,
+        "attempts": 4,
+        "latency_ms": null
+      },
+      {
+        "case_id": "ood_option_unwrap",
+        "category": "error_handling",
+        "solved": false,
+        "attempts": 4,
+        "latency_ms": null
+      },
+      {
+        "case_id": "ood_generic_bound",
+        "category": "trait_bound",
+        "solved": true,
+        "attempts": 1,
+        "latency_ms": null
+      },
+      {
+        "case_id": "ood_string_return",
+        "category": "type_mismatch",
+        "solved": true,
+        "attempts": 1,
+        "latency_ms": null
+      },
+      {
+        "case_id": "ood_match_arms",
+        "category": "non_exhaustive",
+        "solved": false,
+        "attempts": 4,
+        "latency_ms": null
+      },
+      {
+        "case_id": "ood_index_type",
+        "category": "type_mismatch",
+        "solved": false,
+        "attempts": 4,
+        "latency_ms": null
+      },
+      {
+        "case_id": "ood_push_immut",
+        "category": "missing_mut",
+        "solved": true,
+        "attempts": 1,
+        "latency_ms": null
+      },
+      {
+        "case_id": "ood_arg_count",
+        "category": "arg_count",
+        "solved": true,
+        "attempts": 1,
+        "latency_ms": null
+      },
+      {
+        "case_id": "ood_clone_needed",
+        "category": "borrow",
+        "solved": false,
+        "attempts": 4,
+        "latency_ms": null
+      },
+      {
+        "case_id": "ood_enum_variant",
+        "category": "undeclared",
+        "solved": true,
+        "attempts": 1,
+        "latency_ms": null
+      },
+      {
+        "case_id": "ood_macro_name",
+        "category": "undeclared",
+        "solved": false,
+        "attempts": 4,
+        "latency_ms": null
+      },
+      {
+        "case_id": "ood_trait_impl",
+        "category": "missing_method",
+        "solved": false,
+        "attempts": 4,
+        "latency_ms": null
+      },
+      {
+        "case_id": "ood_slice_bounds",
+        "category": "type_mismatch",
+        "solved": true,
+        "attempts": 1,
+        "latency_ms": null
+      },
+      {
+        "case_id": "ood_float_mix",
+        "category": "type_mismatch",
+        "solved": true,
+        "attempts": 1,
+        "latency_ms": null
+      },
+      {
+        "case_id": "ood_parse_method",
+        "category": "unknown_method",
+        "solved": true,
+        "attempts": 1,
+        "latency_ms": null
+      },
+      {
+        "case_id": "ood_semicolon_real",
+        "category": "syntax",
+        "solved": true,
+        "attempts": 1,
+        "latency_ms": null
+      },
+      {
+        "case_id": "ood_derive_eq",
+        "category": "missing_derive",
+        "solved": false,
+        "attempts": 4,
+        "latency_ms": null
+      },
+      {
+        "case_id": "ood_trailing_semi",
+        "category": "type_mismatch",
+        "solved": true,
+        "attempts": 1,
+        "latency_ms": null
+      },
+      {
+        "case_id": "ood_hashmap_get",
+        "category": "unknown_method",
+        "solved": true,
+        "attempts": 2,
+        "latency_ms": null
+      }
+    ]
+  },
+  "eval": "../datasets/eval_ood_v1.jsonl",
+  "n_cases": 25
+}

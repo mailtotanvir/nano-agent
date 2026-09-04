@@ -1,0 +1,31 @@
+{
+  "dataset": "teacher_trajectories_v1",
+  "generated_from": "train_pool_v1.jsonl (86 cases, eval excluded)",
+  "teacher_model": "gemini-3.6-flash",
+  "teacher_backend": "vertex-ai/global (ADC, project your-gcp-project)",
+  "max_attempts": 4,
+  "kept_success": 73,
+  "solve_rate": 0.849,
+  "escalated": 13,
+  "multi_step_recovery": 13,
+  "total_frontier_steps": 95,
+  "attempts_distribution": {
+    "1": 60,
+    "2": 6,
+    "3": 5,
+    "4": 2
+  },
+  "success_by_category": {
+    "missing_semicolon": 21,
+    "unknown_method": 18,
+    "undeclared_ident": 10,
+    "wrong_arg_type": 5,
+    "wrong_field_name": 5,
+    "type_mismatch": 4,
+    "missing_import": 3,
+    "bool_as_int": 2,
+    "missing_mut": 2,
+    "missing_type_annotation": 2,
+    "missing_derive": 1
+  }
+}

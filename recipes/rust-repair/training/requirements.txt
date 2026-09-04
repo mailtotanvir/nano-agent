@@ -1,0 +1,9 @@
+# Phase 2 SFT training deps (installed on the GCP L4 VM, not the OCI box).
+# Pin conservatively; adjust to the CUDA image on the VM.
+torch>=2.3
+transformers>=4.46
+trl>=0.12
+datasets>=3.0
+accelerate>=1.0
+peft>=0.13
+bitsandbytes>=0.44   # only needed for --qlora (1.5B control)

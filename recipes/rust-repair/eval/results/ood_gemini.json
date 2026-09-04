@@ -1,0 +1,133 @@
+{
+  "model": "gemini-3.6-flash",
+  "solved": 14,
+  "n": 25,
+  "rate": 0.56,
+  "per_case": [
+    {
+      "case_id": "ood_ref_arg",
+      "category": "type_mismatch",
+      "solved": false
+    },
+    {
+      "case_id": "ood_int_cast",
+      "category": "type_mismatch",
+      "solved": false
+    },
+    {
+      "case_id": "ood_move_use",
+      "category": "borrow",
+      "solved": true
+    },
+    {
+      "case_id": "ood_trait_method",
+      "category": "unknown_method",
+      "solved": true
+    },
+    {
+      "case_id": "ood_iter_collect",
+      "category": "type_mismatch",
+      "solved": false
+    },
+    {
+      "case_id": "ood_trait_scope",
+      "category": "missing_import",
+      "solved": false
+    },
+    {
+      "case_id": "ood_question_unit",
+      "category": "error_handling",
+      "solved": true
+    },
+    {
+      "case_id": "ood_option_unwrap",
+      "category": "error_handling",
+      "solved": true
+    },
+    {
+      "case_id": "ood_match_arms",
+      "category": "non_exhaustive",
+      "solved": false
+    },
+    {
+      "case_id": "ood_generic_bound",
+      "category": "trait_bound",
+      "solved": false
+    },
+    {
+      "case_id": "ood_push_immut",
+      "category": "missing_mut",
+      "solved": true
+    },
+    {
+      "case_id": "ood_string_return",
+      "category": "type_mismatch",
+      "solved": true
+    },
+    {
+      "case_id": "ood_arg_count",
+      "category": "arg_count",
+      "solved": false
+    },
+    {
+      "case_id": "ood_index_type",
+      "category": "type_mismatch",
+      "solved": true
+    },
+    {
+      "case_id": "ood_enum_variant",
+      "category": "undeclared",
+      "solved": false
+    },
+    {
+      "case_id": "ood_slice_bounds",
+      "category": "type_mismatch",
+      "solved": false
+    },
+    {
+      "case_id": "ood_macro_name",
+      "category": "undeclared",
+      "solved": true
+    },
+    {
+      "case_id": "ood_semicolon_real",
+      "category": "syntax",
+      "solved": true
+    },
+    {
+      "case_id": "ood_trait_impl",
+      "category": "missing_method",
+      "solved": false
+    },
+    {
+      "case_id": "ood_clone_needed",
+      "category": "borrow",
+      "solved": false
+    },
+    {
+      "case_id": "ood_derive_eq",
+      "category": "missing_derive",
+      "solved": true
+    },
+    {
+      "case_id": "ood_trailing_semi",
+      "category": "type_mismatch",
+      "solved": true
+    },
+    {
+      "case_id": "ood_float_mix",
+      "category": "type_mismatch",
+      "solved": true
+    },
+    {
+      "case_id": "ood_parse_method",
+      "category": "unknown_method",
+      "solved": true
+    },
+    {
+      "case_id": "ood_hashmap_get",
+      "category": "unknown_method",
+      "solved": true
+    }
+  ]
+}

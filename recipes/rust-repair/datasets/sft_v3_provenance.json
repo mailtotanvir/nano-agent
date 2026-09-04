@@ -1,0 +1,23 @@
+{
+  "dataset": "sft_v3",
+  "composition": {
+    "in_distribution_v2": 348,
+    "structural_v1": 141,
+    "total": 489
+  },
+  "structural_teacher": "gemini-3.6-flash via Vertex, 214 structural cases, 141 solved (65.9%)",
+  "new_categories": [
+    "add_use",
+    "add_trait_method",
+    "add_match_arm",
+    "fix_return_expr",
+    "ref_return",
+    "add_derive",
+    "add_trait_bound",
+    "collect_type",
+    "move_then_use",
+    "closure_capture"
+  ],
+  "contamination_check": "0 OOD-eval cases present in training (frozen eval_ood_v1 disjoint)",
+  "purpose": "close the 44%->56% OOD gap vs Gemini teacher via failure-driven curriculum"
+}

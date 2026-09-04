@@ -1,0 +1,13 @@
+{
+  "dataset": "teacher_trajectories_v2 -> sft_v2",
+  "generated_from": "train_pool_v2.jsonl (427 leak-free cases)",
+  "teacher_model": "gemini-3.6-flash via Vertex AI (project your-gcp-project)",
+  "teacher_solve_rate": 0.815,
+  "kept_success_trajectories": 348,
+  "escalated": 79,
+  "multi_step_recovery": 57,
+  "sft_examples": 348,
+  "sft_filter": "only patches that applied and were not reverted (default); excluded 104 short-marker '<<<<<<<' intermediate steps that never applied - training on those would teach the wrong patch format",
+  "sft_categories": 12,
+  "eval_set": "eval_v1 (frozen, unchanged) - baselines stay comparable"
+}

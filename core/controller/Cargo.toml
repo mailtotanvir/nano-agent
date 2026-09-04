@@ -1,0 +1,18 @@
+[package]
+name = "nano-controller"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+nano-patch.workspace = true
+nano-trajectory.workspace = true
+nano-model-client.workspace = true
+
+[lib]
+path = "src/lib.rs"

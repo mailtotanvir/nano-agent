@@ -1,0 +1,42 @@
+# build artifacts
+/target
+**/target
+Cargo.lock
+
+# python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+
+# datasets & models (kept off git — HF Hub + OCI disk)
+recipes/*/datasets/**/*.jsonl
+recipes/*/datasets/**/*.json
+!recipes/*/datasets/**/manifest.json
+!recipes/*/datasets/**/*provenance*.json
+*.gguf
+*.safetensors
+checkpoints/
+models/
+
+# trajectories & logs
+*.jsonl
+trajectories*.jsonl
+experiments/**/results.json
+
+# secrets
+.env
+*.key
+!*.key.example
+
+# editor / os
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Trained model weights (live in GCS bucket + OCI box, not git)
+recipes/rust-repair/training/out/**/model.safetensors
+recipes/rust-repair/training/out/**/*.gguf
+recipes/rust-repair/training/out/**/tokenizer.json

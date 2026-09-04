@@ -1,0 +1,22 @@
+[package]
+name = "rust-repair-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "rust-repair"
+path = "src/main.rs"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+clap.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+nano-controller.workspace = true
+nano-model-client.workspace = true
+nano-trajectory.workspace = true
+nano-patch.workspace = true
+rust-repair-verifier.workspace = true

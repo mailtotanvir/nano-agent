@@ -1,0 +1,478 @@
+{
+  "config": {
+    "tiny_model": "qwen2.5-coder-0.5b-q8_0",
+    "llama_url": "http://127.0.0.1:8090",
+    "frontier_model": "gemini-3.6-flash",
+    "frontier_backend": "vertex",
+    "gcp_project": "your-gcp-project",
+    "gcp_location": "global",
+    "max_attempts": 4
+  },
+  "summary": {
+    "tiny_loop": {
+      "n": 45,
+      "solved": 0,
+      "repair_rate": 0.0,
+      "avg_attempts": 3.89,
+      "median_latency_ms": 6788,
+      "p95_latency_ms": 29554,
+      "escalated": 0,
+      "envelope_by_code": {
+        "E0277": {
+          "solved": 0,
+          "total": 1,
+          "rate": 0.0
+        },
+        "E0282": {
+          "solved": 0,
+          "total": 1,
+          "rate": 0.0
+        },
+        "E0308": {
+          "solved": 0,
+          "total": 5,
+          "rate": 0.0
+        },
+        "E0425": {
+          "solved": 0,
+          "total": 6,
+          "rate": 0.0
+        },
+        "E0433": {
+          "solved": 0,
+          "total": 2,
+          "rate": 0.0
+        },
+        "E0560": {
+          "solved": 0,
+          "total": 2,
+          "rate": 0.0
+        },
+        "E0596": {
+          "solved": 0,
+          "total": 4,
+          "rate": 0.0
+        },
+        "E0599": {
+          "solved": 0,
+          "total": 12,
+          "rate": 0.0
+        },
+        "SYNTAX": {
+          "solved": 0,
+          "total": 12,
+          "rate": 0.0
+        }
+      }
+    }
+  },
+  "results": {
+    "tiny_loop": [
+      {
+        "case_id": "d0edada82d53",
+        "intended_code": "E0308",
+        "category": "bool_as_int",
+        "success": false,
+        "attempts": 4,
+        "latency_ms": 4246,
+        "escalated": false
+      },
+      {
+        "case_id": "806f26c58440",
+        "intended_code": "E0277",
+        "category": "missing_derive",
+        "success": false,
+        "attempts": 4,
+        "latency_ms": 6550,
+        "escalated": false
+      },
+      {
+        "case_id": "db28536db351",
+        "intended_code": "E0433",
+        "category": "missing_import",
+        "success": false,
+        "attempts": 4,
+        "latency_ms": 5185,
+        "escalated": false
+      },
+      {
+        "case_id": "fd3a64f13842",
+        "intended_code": "E0433",
+        "category": "missing_import",
+        "success": false,
+        "attempts": 4,
+        "latency_ms": 5533,
+        "escalated": false
+      },
+      {
+        "case_id": "b34169f50c18",
+        "intended_code": "E0596",
+        "category": "missing_mut",
+        "success": false,
+        "attempts": 4,
+        "latency_ms": 8142,
+        "escalated": false
+      },
+      {
+        "case_id": "3fa2e4c7c3df",
+        "intended_code": "E0596",
+        "category": "missing_mut",
+        "success": false,
+        "attempts": 4,
+        "latency_ms": 8938,
+        "escalated": false
+      },
+      {
+        "case_id": "c35b77f5ca5f",
+        "intended_code": "E0596",
+        "category": "missing_mut",
+        "success": false,
+        "attempts": 4,
+        "latency_ms": 16558,
+        "escalated": false
+      },
+      {
+        "case_id": "f338711ec6fa",
+        "intended_code": "E0596",
+        "category": "missing_mut",
+        "success": false,
+        "attempts": 4,
+        "latency_ms": 9827,
+        "escalated": false
+      },
+      {
+        "case_id": "db1ef822f6c9",
+        "intended_code": "SYNTAX",
+        "category": "missing_semicolon",
+        "success": false,
+        "attempts": 4,
+        "latency_ms": 3876,
+        "escalated": false
+      },
+      {
+        "case_id": "7756f4b10c3c",
+        "intended_code": "SYNTAX",
+        "category": "missing_semicolon",
+        "success": false,
+        "attempts": 4,
+        "latency_ms": 5178,
+        "escalated": false
+      },
+      {
+        "case_id": "dd502bad5911",
+        "intended_code": "SYNTAX",
+        "category": "missing_semicolon",
+        "success": false,
+        "attempts": 4,
+        "latency_ms": 4912,
+        "escalated": false
+      },
+      {
+        "case_id": "7e0543e5b4bd",
+        "intended_code": "SYNTAX",
+        "category": "missing_semicolon",
+        "success": false,
+        "attempts": 4,
+        "latency_ms": 4312,
+        "escalated": false
+      },
+      {
+        "case_id": "2dc1901b789f",
+        "intended_code": "SYNTAX",
+        "category": "missing_semicolon",
+        "success": false,
+        "attempts": 4,
+        "latency_ms": 5076,
+        "escalated": false
+      },
+      {
+        "case_id": "208da2ca271a",
+        "intended_code": "SYNTAX",
+        "category": "missing_semicolon",
+        "success": false,
+        "attempts": 4,
+        "latency_ms": 4548,
+        "escalated": false
+      },
+      {
+        "case_id": "4f7db46f8e9a",
+        "intended_code": "SYNTAX",
+        "category": "missing_semicolon",
+        "success": false,
+        "attempts": 4,
+        "latency_ms": 4313,
+        "escalated": false
+      },
+      {
+        "case_id": "210e1b01603a",
+        "intended_code": "SYNTAX",
+        "category": "missing_semicolon",
+        "success": false,
+        "attempts": 4,
+        "latency_ms": 3933,
+        "escalated": false
+      },
+      {
+        "case_id": "6b352caa5677",
+        "intended_code": "SYNTAX",
+        "category": "missing_semicolon",
+        "success": false,
+        "attempts": 4,
+        "latency_ms": 4833,
+        "escalated": false
+      },
+      {
+        "case_id": "811acb6950bc",
+        "intended_code": "SYNTAX",
+        "category": "missing_semicolon",
+        "success": false,
+        "attempts": 4,
+        "latency_ms": 4039,
+        "escalated": false
+      },
+      {
+        "case_id": "a98261aa4152",
+        "intended_code": "SYNTAX",
+        "category": "missing_semicolon",
+        "success": false,
+        "attempts": 4,
+        "latency_ms": 5045,
+        "escalated": false
+      },
+      {
+        "case_id": "e6da8355f08e",
+        "intended_code": "SYNTAX",
+        "category": "missing_semicolon",
+        "success": false,
+        "attempts": 4,
+        "latency_ms": 3903,
+        "escalated": false
+      },
+      {
+        "case_id": "6d3f62d3ff00",
+        "intended_code": "E0282",
+        "category": "missing_type_annotation",
+        "success": false,
+        "attempts": 4,
+        "latency_ms": 5001,
+        "escalated": false
+      },
+      {
+        "case_id": "51d236c5deae",
+        "intended_code": "E0308",
+        "category": "type_mismatch",
+        "success": false,
+        "attempts": 4,
+        "latency_ms": 21249,
+        "escalated": false
+      },
+      {
+        "case_id": "b7c3a0cb0682",
+        "intended_code": "E0308",
+        "category": "type_mismatch",
+        "success": false,
+        "attempts": 4,
+        "latency_ms": 34166,
+        "escalated": false
+      },
+      {
+        "case_id": "9d639c503e88",
+        "intended_code": "E0425",
+        "category": "undeclared_ident",
+        "success": false,
+        "attempts": 4,
+        "latency_ms": 16913,
+        "escalated": false
+      },
+      {
+        "case_id": "74ee123540ab",
+        "intended_code": "E0425",
+        "category": "undeclared_ident",
+        "success": false,
+        "attempts": 4,
+        "latency_ms": 12871,
+        "escalated": false
+      },
+      {
+        "case_id": "761c213987e5",
+        "intended_code": "E0425",
+        "category": "undeclared_ident",
+        "success": false,
+        "attempts": 4,
+        "latency_ms": 12427,
+        "escalated": false
+      },
+      {
+        "case_id": "e549282ec2e1",
+        "intended_code": "E0425",
+        "category": "undeclared_ident",
+        "success": false,
+        "attempts": 4,
+        "latency_ms": 16345,
+        "escalated": false
+      },
+      {
+        "case_id": "a9f837ca9dbd",
+        "intended_code": "E0425",
+        "category": "undeclared_ident",
+        "success": false,
+        "attempts": 4,
+        "latency_ms": 5816,
+        "escalated": false
+      },
+      {
+        "case_id": "93c4e990c92c",
+        "intended_code": "E0425",
+        "category": "undeclared_ident",
+        "success": false,
+        "attempts": 4,
+        "latency_ms": 6788,
+        "escalated": false
+      },
+      {
+        "case_id": "b05e9a365187",
+        "intended_code": "E0599",
+        "category": "unknown_method",
+        "success": false,
+        "attempts": 2,
+        "latency_ms": 3431,
+        "escalated": false
+      },
+      {
+        "case_id": "ae51da9635a2",
+        "intended_code": "E0599",
+        "category": "unknown_method",
+        "success": false,
+        "attempts": 4,
+        "latency_ms": 15009,
+        "escalated": false
+      },
+      {
+        "case_id": "c18f2e3ed592",
+        "intended_code": "E0599",
+        "category": "unknown_method",
+        "success": false,
+        "attempts": 4,
+        "latency_ms": 6291,
+        "escalated": false
+      },
+      {
+        "case_id": "96d478aa2bed",
+        "intended_code": "E0599",
+        "category": "unknown_method",
+        "success": false,
+        "attempts": 2,
+        "latency_ms": 3204,
+        "escalated": false
+      },
+      {
+        "case_id": "265eb9c015b1",
+        "intended_code": "E0599",
+        "category": "unknown_method",
+        "success": false,
+        "attempts": 4,
+        "latency_ms": 13083,
+        "escalated": false
+      },
+      {
+        "case_id": "52f646c32dd0",
+        "intended_code": "E0599",
+        "category": "unknown_method",
+        "success": false,
+        "attempts": 4,
+        "latency_ms": 29554,
+        "escalated": false
+      },
+      {
+        "case_id": "4398fac83b8f",
+        "intended_code": "E0599",
+        "category": "unknown_method",
+        "success": false,
+        "attempts": 4,
+        "latency_ms": 7369,
+        "escalated": false
+      },
+      {
+        "case_id": "930ed917b17e",
+        "intended_code": "E0599",
+        "category": "unknown_method",
+        "success": false,
+        "attempts": 4,
+        "latency_ms": 27894,
+        "escalated": false
+      },
+      {
+        "case_id": "83131a9894cb",
+        "intended_code": "E0599",
+        "category": "unknown_method",
+        "success": false,
+        "attempts": 4,
+        "latency_ms": 20907,
+        "escalated": false
+      },
+      {
+        "case_id": "4200ab82445a",
+        "intended_code": "E0599",
+        "category": "unknown_method",
+        "success": false,
+        "attempts": 4,
+        "latency_ms": 7528,
+        "escalated": false
+      },
+      {
+        "case_id": "84f9d07eec81",
+        "intended_code": "E0599",
+        "category": "unknown_method",
+        "success": false,
+        "attempts": 4,
+        "latency_ms": 21814,
+        "escalated": false
+      },
+      {
+        "case_id": "e942e411b01a",
+        "intended_code": "E0599",
+        "category": "unknown_method",
+        "success": false,
+        "attempts": 3,
+        "latency_ms": 12964,
+        "escalated": false
+      },
+      {
+        "case_id": "d054f0ef19f8",
+        "intended_code": "E0308",
+        "category": "wrong_arg_type",
+        "success": false,
+        "attempts": 4,
+        "latency_ms": 4994,
+        "escalated": false
+      },
+      {
+        "case_id": "d1b149ac2381",
+        "intended_code": "E0308",
+        "category": "wrong_arg_type",
+        "success": false,
+        "attempts": 4,
+        "latency_ms": 7017,
+        "escalated": false
+      },
+      {
+        "case_id": "d3a524af7289",
+        "intended_code": "E0560",
+        "category": "wrong_field_name",
+        "success": false,
+        "attempts": 4,
+        "latency_ms": 14670,
+        "escalated": false
+      },
+      {
+        "case_id": "85cdfe6dd1c7",
+        "intended_code": "E0560",
+        "category": "wrong_field_name",
+        "success": false,
+        "attempts": 4,
+        "latency_ms": 36052,
+        "escalated": false
+      }
+    ]
+  }
+}

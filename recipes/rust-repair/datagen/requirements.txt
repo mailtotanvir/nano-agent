@@ -1,0 +1,5 @@
+# Datagen dependencies for rust-repair.
+# The break_it.py generator uses only the Python stdlib + a Rust toolchain
+# (cargo) on PATH. The teacher-trajectory pipeline (Phase 0.5) adds the client
+# for Gemini.
+google-genai>=0.3.0
