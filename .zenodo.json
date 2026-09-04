@@ -1,0 +1,28 @@
+{
+  "title": "nano-agent: A Tiny Model Beats Its Teacher — Verified-Loop Repair with a Sub-1B Language Model",
+  "description": "A 0.5B-parameter code model placed inside a deterministic verify-propose-apply-reverify loop, with the Rust compiler (cargo check) as the oracle, repairs compiler errors at rates exceeding the mid-tier model that generated its training data. Untrained-in-loop 0% -> SFT 86.7% in-distribution; a failure-driven curriculum lifts frozen out-of-distribution accuracy 44% -> 60% (crossing the 56% teacher bar) -> 72% with a stronger teacher. Includes the controller, SEARCH/REPLACE patch engine, Rust verifier, data generators, frozen eval sets, per-case result JSON, and the accompanying paper. Apache-2.0.",
+  "upload_type": "software",
+  "access_right": "open",
+  "license": "Apache-2.0",
+  "creators": [
+    { "name": "Ahmed, Tanvir" }
+  ],
+  "keywords": [
+    "small language models",
+    "code repair",
+    "verified loop",
+    "knowledge distillation",
+    "supervised fine-tuning",
+    "Rust",
+    "compiler-guided repair",
+    "curriculum learning",
+    "on-device inference"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "https://github.com/mailtotanvir/nano-agent",
+      "relation": "isSupplementTo",
+      "scheme": "url"
+    }
+  ]
+}

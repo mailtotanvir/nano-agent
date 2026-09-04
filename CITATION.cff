@@ -1,0 +1,26 @@
+cff-version: 1.2.0
+message: "If you use this software or its results, please cite it as below."
+title: "nano-agent: A Tiny Model Beats Its Teacher — Verified-Loop Repair with a Sub-1B Language Model"
+authors:
+  - family-names: Ahmed
+    given-names: Tanvir
+repository-code: "https://github.com/mailtotanvir/nano-agent"
+license: Apache-2.0
+version: "0.1.0"
+date-released: "2026-09-04"
+keywords:
+  - small language models
+  - code repair
+  - verified loop
+  - knowledge distillation
+  - Rust
+  - curriculum learning
+abstract: >
+  A 0.5B-parameter code model placed inside a deterministic
+  verify-propose-apply-reverify loop, with the Rust compiler as the oracle,
+  repairs compiler errors at rates that exceed the mid-tier model used to
+  generate its training data. An untrained model in the loop scores 0%; one SFT
+  pass reaches 86.7% in-distribution. A failure-driven curriculum lifts frozen
+  out-of-distribution accuracy from 44% to 60% (past the 56% teacher bar), and a
+  stronger-teacher ablation raises it to 72%, bounded by a structural-insertion
+  capacity limit. The model is one component; the verified recipe is the product.
