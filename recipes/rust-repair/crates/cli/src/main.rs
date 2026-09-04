@@ -5,11 +5,15 @@
 
 use anyhow::{Context, Result};
 use clap::{Parser, ValueEnum};
-use nano_controller::{run_episode, Config, Verifier, VerifyState};
+use nano_controller::{drive, Config, EscalationPolicy, RecipeSpec, Verifier, VerifyState};
 use nano_model_client::{AzureClient, GeminiClient, LlamaCppClient, ModelClient, PROPOSAL_GBNF};
 use nano_trajectory::TrajectoryLog;
 use rust_repair_verifier::{cargo_check, CheckResult, Diagnostic};
 use std::path::{Path, PathBuf};
+
+/// Rust-specific system prompt for the rust-repair recipe. Owned by the recipe,
+/// not by the generic core (which ships a domain-neutral prompt).
+const RUST_REPAIR_SYSTEM_PROMPT: &str = "You are a Rust compiler-error repair agent. You are given one compiler error and the relevant source. Respond with ONLY a single JSON object matching this contract: {\"action\": \"patch\"|\"no_fix\"|\"escalate\", \"patch\": \"<SEARCH/REPLACE blocks or null>\", \"reason\": \"<short>\", \"confidence\": <0.0-1.0>}. For a patch, the \"patch\" field must contain one or more blocks in this exact format:\nfile: <path>\n<<<<<<< SEARCH\n<exact existing lines>\n=======\n<replacement lines>\n>>>>>>> REPLACE\nMake the smallest change that fixes the error. If you cannot fix it, use action \"no_fix\" or \"escalate\".";
 
 #[derive(Debug, Clone, ValueEnum)]
 enum Backend {
@@ -59,6 +63,18 @@ struct Cli {
     /// Vertex AI location (use "global" for newest Gemini models).
     #[arg(long, default_value = "global")]
     gcp_location: String,
+    /// Escalate to a frontier model when the tiny loop exhausts its budget.
+    #[arg(long)]
+    escalate: bool,
+    /// Backend for the escalation model (used only with --escalate).
+    #[arg(long, value_enum, default_value = "gemini")]
+    escalation_backend: Backend,
+    /// Model id for the escalation model (used only with --escalate).
+    #[arg(long, default_value = "gemini-2.5-flash")]
+    escalation_model: String,
+    /// Max frontier attempts after escalation (used only with --escalate).
+    #[arg(long, default_value_t = 1)]
+    escalation_attempts: u32,
 }
 
 /// Rust-specific Verifier: builds model context from cargo diagnostics and
@@ -159,25 +175,64 @@ impl Verifier for RustVerifier {
     }
 }
 
+/// The rust-repair recipe: implements `RecipeSpec` so the generic `drive()`
+/// entrypoint can run it. Owns the Rust system prompt and the escalation policy.
+struct RustRepairRecipe {
+    max_attempts: u32,
+    escalate: bool,
+    escalation_attempts: u32,
+}
+
+impl RecipeSpec for RustRepairRecipe {
+    fn name(&self) -> &str {
+        "rust-repair"
+    }
+    fn verifier(&self, workspace: &Path) -> anyhow::Result<Box<dyn Verifier>> {
+        Ok(Box::new(RustVerifier::new(workspace.to_path_buf())))
+    }
+    fn system_prompt(&self) -> String {
+        RUST_REPAIR_SYSTEM_PROMPT.to_string()
+    }
+    fn escalation_policy(&self) -> EscalationPolicy {
+        EscalationPolicy {
+            enabled: self.escalate,
+            max_frontier_attempts: self.escalation_attempts,
+        }
+    }
+    fn base_config(&self) -> Config {
+        Config {
+            max_attempts: self.max_attempts,
+            actor: nano_trajectory::Actor::Tiny,
+            ..Default::default()
+        }
+    }
+}
+
 fn build_model(cli: &Cli) -> Result<Box<dyn ModelClient>> {
-    match cli.backend {
+    build_backend(&cli.backend, &cli.model, cli)
+}
+
+/// Build a model client for a given backend + model id, reusing the CLI's
+/// llama URL / grammar / GCP settings. Shared by the tiny and escalation models.
+fn build_backend(backend: &Backend, model: &str, cli: &Cli) -> Result<Box<dyn ModelClient>> {
+    match backend {
         Backend::Llama => {
-            let mut c = LlamaCppClient::new(&cli.llama_url, &cli.model);
+            let mut c = LlamaCppClient::new(&cli.llama_url, model);
             if !cli.no_grammar {
                 c = c.with_grammar(PROPOSAL_GBNF);
             }
             Ok(Box::new(c))
         }
         Backend::Gemini => {
-            let c = GeminiClient::from_env(&cli.model)?;
+            let c = GeminiClient::from_env(model)?;
             Ok(Box::new(c))
         }
         Backend::Vertex => {
-            let c = GeminiClient::from_vertex_adc(&cli.model, &cli.gcp_project, &cli.gcp_location)?;
+            let c = GeminiClient::from_vertex_adc(model, &cli.gcp_project, &cli.gcp_location)?;
             Ok(Box::new(c))
         }
         Backend::Azure => {
-            let c = AzureClient::from_env(&cli.model)?;
+            let c = AzureClient::from_env(model)?;
             Ok(Box::new(c))
         }
     }
@@ -202,30 +257,42 @@ fn main() -> Result<()> {
         anyhow::bail!("no Cargo.toml at {}", cli.path.display());
     }
 
-    let verifier = RustVerifier::new(cli.path.clone());
-    let model = build_model(&cli)?;
-    let actor = match cli.backend {
-        Backend::Gemini | Backend::Vertex | Backend::Azure => nano_trajectory::Actor::Frontier,
-        Backend::Llama => nano_trajectory::Actor::Tiny,
-    };
-    let cfg = Config {
+    let recipe = RustRepairRecipe {
         max_attempts: cli.max_attempts,
-        actor,
-        ..Default::default()
+        escalate: cli.escalate,
+        escalation_attempts: cli.escalation_attempts,
+    };
+    let tiny = build_model(&cli)?;
+    let escalation: Option<Box<dyn ModelClient>> = if cli.escalate {
+        Some(build_backend(
+            &cli.escalation_backend,
+            &cli.escalation_model,
+            &cli,
+        )?)
+    } else {
+        None
     };
 
     let traj_id = format!("{}-{}", cli.case_id, chrono_ts());
-    let traj = run_episode(&verifier, model.as_ref(), &cfg, &cli.case_id, &traj_id)?;
+    let traj = drive(
+        &recipe,
+        &cli.path,
+        tiny.as_ref(),
+        escalation.as_deref(),
+        &cli.case_id,
+        &traj_id,
+    )?;
 
     let mut log = TrajectoryLog::open(&cli.log)?;
     log.append(&traj)?;
 
     println!(
-        "outcome={:?} attempts={} initial_errors={} model={} latency_ms={}",
+        "outcome={:?} attempts={} initial_errors={} model={} escalated={} latency_ms={}",
         traj.outcome,
         traj.attempts,
         traj.initial_codes.len(),
         traj.model,
+        traj.escalated,
         traj.total_latency_ms
     );
     // Non-zero exit if not fixed, so scripts can branch.
@@ -243,3 +310,33 @@ fn chrono_ts() -> String {
 
 #[allow(dead_code)]
 fn _unused(_: &Path) {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn recipe_metadata_and_prompt() {
+        let r = RustRepairRecipe {
+            max_attempts: 4,
+            escalate: false,
+            escalation_attempts: 1,
+        };
+        assert_eq!(r.name(), "rust-repair");
+        assert!(r.system_prompt().contains("Rust"));
+        assert_eq!(r.base_config().max_attempts, 4);
+        assert!(!r.escalation_policy().enabled);
+    }
+
+    #[test]
+    fn escalation_policy_reflects_flags() {
+        let r = RustRepairRecipe {
+            max_attempts: 4,
+            escalate: true,
+            escalation_attempts: 3,
+        };
+        let p = r.escalation_policy();
+        assert!(p.enabled);
+        assert_eq!(p.max_frontier_attempts, 3);
+    }
+}

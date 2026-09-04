@@ -1,0 +1,17 @@
+[package]
+name = "nano-template-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "nano-template"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+nano-controller.workspace = true
+nano-model-client.workspace = true
+nano-trajectory.workspace = true
+nano-template-verifier = { path = "../verifier" }

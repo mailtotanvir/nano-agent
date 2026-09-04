@@ -1,0 +1,12 @@
+[package]
+name = "nano-template-verifier"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+nano-controller.workspace = true
+
+[lib]
+path = "src/lib.rs"

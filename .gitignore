@@ -40,3 +40,4 @@ experiments/**/results.json
 recipes/rust-repair/training/out/**/model.safetensors
 recipes/rust-repair/training/out/**/*.gguf
 recipes/rust-repair/training/out/**/tokenizer.json
+.export_exclude.txt

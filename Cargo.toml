@@ -7,10 +7,13 @@ members = [
     "core/trajectory",
     "recipes/rust-repair/crates/verifier",
     "recipes/rust-repair/crates/cli",
+    # Copy-me skeleton for a new recipe (compiles + runs a no-op).
+    "recipes/_template/crates/verifier",
+    "recipes/_template/crates/cli",
 ]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 license = "Apache-2.0"
 repository = "https://github.com/mailtotanvir/nano-agent"
