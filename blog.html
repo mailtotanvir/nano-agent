@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The tiny model that outgrew its teacher: what happened when I stopped paying frontier prices to fix compiler errors</title>
+<meta name="description" content="A 0.5B model in a verified repair loop went from fixing 0% of Rust compiler errors to beating the Gemini Flash model that taught it, on held-out cases, running on a CPU.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    /* surface scale: near-black with a cool cast */
+    --bg: #05090B;
+    --surface-1: #070E11;
+    --surface-2: #0A161A;
+    --surface-3: #10232A;
+    --card: rgba(233,244,241,0.03);
+    --line: rgba(159,187,182,0.14);
+    /* ink scale */
+    --text: #EAF5F1;
+    --dim: #9FBBB4;
+    --faint: #5E7C76;
+    /* signal hues: each concept owns one hue */
+    --green: #46E39B;     /* verified / compile pass  (the hero) */
+    --cyan: #4FD6E0;      /* the tiny model */
+    --violet: #A48FFF;    /* teacher / frontier */
+    --amber: #FFC46B;     /* the loop / control */
+    --coral: #FF7A8A;     /* compile fail / regression */
+    --mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+    --sans: 'Plus Jakarta Sans', -apple-system, sans-serif;
+    --display: 'Space Grotesk', var(--sans);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html { scroll-behavior:smooth; scroll-padding-top:32px; }
+  body {
+    background:
+      radial-gradient(ellipse 90% 55% at 50% -12%, rgba(70,227,155,0.09), transparent),
+      radial-gradient(ellipse 50% 40% at 100% 30%, rgba(164,143,255,0.05), transparent),
+      var(--bg);
+    color: var(--text); font-family: var(--sans);
+    line-height: 1.8; font-size: 17.5px;
+  }
+
+  #progress {
+    position: fixed; top:0; left:0; height:3px; width:0%;
+    background: linear-gradient(90deg, var(--green), var(--cyan), var(--violet));
+    box-shadow: 0 0 12px rgba(70,227,155,.55);
+    z-index: 100; transition: width .08s linear;
+  }
+
+  .layout {
+    max-width: 1240px; margin: 0 auto;
+    display: grid; grid-template-columns: 250px minmax(0, 760px) 60px;
+    gap: 48px; padding: 0 24px;
+  }
+  @media (max-width: 1080px) {
+    .layout { grid-template-columns: minmax(0, 1fr); }
+    nav.toc { display: none; }
+  }
+
+  /* ---------- sidebar TOC ---------- */
+  nav.toc { padding-top: 120px; position: sticky; top: 0; align-self: start; max-height: 100vh; overflow-y: auto; scrollbar-width: thin; }
+  .toc-label { font-family: var(--mono); font-size: 9.5px; letter-spacing: .3em; color: var(--faint); text-transform: uppercase; margin-bottom: 16px; display:flex; align-items:center; gap:8px; }
+  .toc-label::before { content:""; width:5px; height:5px; border-radius:50%; background:var(--green); box-shadow:0 0 6px rgba(70,227,155,.8); animation:pulse 2.4s ease-in-out infinite; }
+  nav.toc ol { list-style: none; counter-reset: toc; display: grid; border-left: 1px solid var(--line); }
+  nav.toc li { counter-increment: toc; }
+  nav.toc li a {
+    display: flex; align-items: baseline; gap: 10px; padding: 8px 16px; margin-left: -1px;
+    border-left: 2px solid transparent; font-size: 13px; color: var(--dim);
+    text-decoration: none; transition: all .18s; line-height: 1.4;
+  }
+  nav.toc li a::before {
+    content: "0" counter(toc); font-family: var(--mono); font-size: 9.5px;
+    color: var(--faint); transition: color .18s;
+  }
+  nav.toc li a:hover { color: var(--text); border-left-color: rgba(70,227,155,.4); transform: translateX(2px); }
+  nav.toc li a:hover::before { color: var(--green); }
+  nav.toc li a.active { color: #fff; border-left-color: var(--green); background: linear-gradient(90deg, rgba(70,227,155,.08), transparent); }
+  nav.toc li a.active::before { color: var(--cyan); }
+
+  article { padding-top: 96px; padding-bottom: 140px; min-width: 0; }
+
+  /* ---------- hero ---------- */
+  .kicker {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .3em;
+    text-transform: uppercase; color: var(--faint); margin-bottom: 24px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .kicker::before { content: ""; width: 28px; height: 1px; background: var(--green); }
+  .statline {
+    font-family:var(--mono); font-size:11px; color:var(--faint); letter-spacing:.12em; margin-bottom:18px;
+  }
+  .statline span { margin-right: 18px; }
+  h1 {
+    font-family: var(--display); font-weight: 700;
+    font-size: clamp(38px, 6vw, 62px);
+    line-height: 1.06; letter-spacing: -0.025em;
+  }
+  h1 em { font-style: italic; color: var(--green); }
+  .standfirst { font-size: 20px; color: var(--dim); margin-top: 30px; max-width: 670px; line-height: 1.7; }
+  .meta { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 34px; font-family: var(--mono); font-size: 11px; letter-spacing: .08em; color: var(--dim); }
+  .meta span { border: 1px solid var(--line); border-radius: 999px; padding: 7px 16px; background: rgba(233,244,241,0.02); }
+  .meta span::before { content: "●"; font-size: 7px; vertical-align: 2px; margin-right: 8px; color: var(--green); }
+  .meta span:nth-child(2)::before { color: var(--cyan); }
+  .meta span:nth-child(3)::before { color: var(--violet); }
+
+  h2 {
+    font-family: var(--display); font-size: clamp(26px, 3vw, 32px); letter-spacing: -.015em;
+    font-weight: 700; margin: 96px 0 10px; scroll-margin-top: 40px; line-height: 1.2;
+  }
+  h2::before { content: ""; display:block; width: 44px; height: 2px; background: var(--line); position: relative; margin-bottom: 22px; }
+  h2::after { content: ""; display:block; width: 16px; height: 2px; background: var(--green); margin: -2px 0 0; transition: width .35s ease; }
+  h2:hover::after { width: 44px; }
+  h2 .chap {
+    display: flex; align-items: center; gap: 8px;
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: .28em;
+    color: var(--faint); text-transform: uppercase; margin-bottom: 14px; font-weight: 400;
+  }
+  h2 .chap::before { content: "▸"; font-size: 9px; }
+  h3 { font-family: var(--display); font-size: 18.5px; margin: 36px 0 8px; letter-spacing: -.005em; }
+
+  h2 { counter-increment: chapter; }
+  h2 .chap::after { content: "CH · " counter(chapter); margin-left: auto; color: var(--faint); opacity: .7; }
+  body { counter-reset: chapter; }
+  p { margin: 17px 0; }
+  .lead-in { font-family: var(--display); color: var(--text); }
+  .dim { color: var(--dim); }
+  a { color: var(--cyan); text-decoration: none; } a:hover { text-decoration: underline; }
+  strong { font-weight: 650; color: #fff; }
+  em { color: var(--dim); }
+
+  blockquote {
+    margin: 38px 0; padding: 30px 34px; border-radius: 16px;
+    background: linear-gradient(135deg, rgba(70,227,155,.06), rgba(164,143,255,.03)), var(--surface-1);
+    border: 1px solid rgba(70,227,155,.22);
+    font-family: var(--display); font-size: clamp(19px, 2.2vw, 23px); line-height: 1.55;
+    position: relative; overflow: hidden; color: var(--text);
+  }
+  blockquote::before {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+    background: linear-gradient(180deg, var(--green), var(--violet));
+  }
+
+  pre { background: var(--surface-1); border:1px solid var(--line); border-radius:12px; padding:20px 22px; overflow-x:auto; margin:20px 0; font-family:var(--mono); font-size:13px; line-height:1.7; color:#B9D2CC; }
+  code { font-family:var(--mono); font-size:.86em; background: rgba(70,227,155,.08); border: 1px solid rgba(70,227,155,.14); padding:2px 7px; border-radius:5px; color:#8FE7C0; }
+  pre code { background:none; padding:0; border:none; color:inherit; }
+
+  table { width:100%; border-collapse:collapse; margin:24px 0; font-size:14.5px; background: var(--surface-1); border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+  th { font-family:var(--mono); font-size:10.5px; text-transform:uppercase; letter-spacing:.18em; color:var(--faint); text-align:left; padding:13px 16px; border-bottom:1px solid var(--line); background: rgba(233,244,241,.02); }
+  td { padding:13px 16px; border-bottom:1px solid rgba(159,187,182,.08); vertical-align:top; color:var(--dim); }
+  tr:last-child td { border-bottom:none; }
+  td:first-child { white-space:nowrap; font-weight:600; color:var(--text); }
+  table tr:hover td { background: rgba(70,227,155,.03); }
+  .win { color: var(--green); font-weight:650; }
+  .lose { color: var(--coral); font-weight:650; }
+  .row-hero td { background: rgba(70,227,155,.06) !important; }
+
+  .aside {
+    background: var(--surface-2); border: 1px solid var(--line); border-radius: 14px;
+    padding: 24px 28px; margin: 30px 0; position: relative; overflow: hidden;
+  }
+  .aside::before { content:""; position:absolute; left:0; top:0; bottom:0; width:3px; background: var(--faint); }
+  .aside.warn { background: linear-gradient(90deg, rgba(255,196,107,.06), transparent 55%), var(--surface-1); }
+  .aside.warn::before { background: var(--amber); }
+  .aside.good { background: linear-gradient(90deg, rgba(70,227,155,.06), transparent 55%), var(--surface-1); }
+  .aside.good::before { background: var(--green); }
+  .aside.bad  { background: linear-gradient(90deg, rgba(255,122,138,.06), transparent 55%), var(--surface-1); }
+  .aside.bad::before { background: var(--coral); }
+  .aside .tag {
+    font-family: var(--mono); font-size: 10px; letter-spacing: .26em; text-transform: uppercase;
+    display:inline-block; margin-bottom: 12px; padding: 4px 12px; border-radius: 999px;
+    border: 1px solid var(--line); color: var(--dim); background: rgba(233,244,241,.03);
+  }
+  .aside.warn .tag{color:var(--amber); border-color:rgba(255,196,107,.3)}
+  .aside.good .tag{color:var(--green); border-color:rgba(70,227,155,.3)}
+  .aside.bad .tag{color:var(--coral); border-color:rgba(255,122,138,.3)}
+  .aside p { margin: 8px 0; font-size: 15.5px; color: var(--dim); }
+  .aside p strong { color: var(--text); }
+
+  /* metric cards */
+  .metrics { display:grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap:16px; margin:30px 0; }
+  .metric {
+    background: var(--surface-1); border:1px solid var(--line); border-radius:16px;
+    padding:22px 20px; text-align:center; transition: all .2s;
+  }
+  .metric:hover { transform: translateY(-2px); border-color: rgba(70,227,155,.4); }
+  .metric .v { font-family: var(--display); font-size: 2.1rem; font-weight:700; letter-spacing:-.03em; color: var(--green); }
+  .metric .v.cyan { color: var(--cyan); } .metric .v.violet { color: var(--violet); } .metric .v.coral { color: var(--coral); }
+  .metric .l { font-family:var(--mono); font-size:9.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--faint); margin-top:8px; }
+
+  /* mermaid framed */
+  .mermaid-frame { background: var(--surface-1); border:1px solid var(--line); border-radius:14px; margin:26px 0; overflow:hidden; }
+  .mermaid-frame .frame-bar {
+    display:flex; align-items:center; gap:10px;
+    font-family:var(--mono); font-size:9.5px; letter-spacing:.24em; text-transform:uppercase;
+    color:var(--faint); padding:11px 18px; border-bottom:1px solid var(--line); background: rgba(233,244,241,.02);
+  }
+  .frame-bar .dot { width:6px; height:6px; border-radius:50%; background: var(--green); box-shadow: 0 0 8px rgba(70,227,155,.7); animation: pulse 2.4s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+  .frame-bar .live { margin-left:auto; color: var(--green); }
+  .mermaid { background:#05090B; padding:26px 18px; overflow-x:auto; display:flex; justify-content:center; }
+  .mermaid svg { max-width:100%; height:auto; }
+
+  details { background: var(--card); border: 1px solid var(--line); border-radius: 14px; margin: 20px 0; overflow: hidden; }
+  summary { cursor: pointer; list-style: none; padding: 17px 24px; font-family: var(--mono); font-size: 13.5px; color: var(--cyan); display: flex; align-items: center; gap: 10px; user-select: none; }
+  summary::-webkit-details-marker { display: none; }
+  summary::before { content: "+"; font-size: 17px; transition: transform .2s; }
+  details[open] summary::before { transform: rotate(45deg); }
+  details[open] summary { border-bottom: 1px solid var(--line); }
+  details .inner { padding: 8px 24px 20px; font-size: 15.5px; color: var(--dim); }
+  details .inner p { margin: 10px 0; }
+  details .inner strong { color: var(--text); }
+
+  /* ---------- repair loop stepper (interactive) ---------- */
+  .loop-lab { background: var(--surface-1); border:1px solid var(--line); border-radius:14px; margin:28px 0; overflow:hidden; }
+  .loop-lab .lab-bar {
+    display:flex; align-items:center; gap:10px;
+    font-family:var(--mono); font-size:9.5px; letter-spacing:.24em; text-transform:uppercase;
+    color:var(--faint); padding:11px 18px; border-bottom:1px solid var(--line); background: rgba(233,244,241,.02);
+  }
+  .loop-lab .lab-bar .dot { width:6px; height:6px; border-radius:50%; background: var(--green); box-shadow:0 0 8px rgba(70,227,155,.7); animation:pulse 2.4s ease-in-out infinite; }
+  .loop-lab .lab-bar .live { margin-left:auto; color:var(--green); }
+  .loop-lab .lab-body { padding: 22px; }
+  .loop-stage { font-family:var(--mono); font-size:10px; letter-spacing:.2em; text-transform:uppercase; color:var(--faint); margin-bottom:12px; }
+  .loop-stage b { color: var(--cyan); }
+  .loop-code {
+    font-family: var(--mono); font-size: 12.5px; line-height: 1.75; white-space: pre;
+    background: var(--bg); border:1px solid var(--line); border-radius:10px; padding:16px 18px; overflow-x:auto;
+    color:#B9D2CC; min-height: 92px;
+  }
+  .loop-code .add { color: var(--green); }
+  .loop-code .del { color: var(--coral); }
+  .loop-verdict { margin-top:14px; font-family:var(--mono); font-size:13px; min-height:22px; }
+  .loop-verdict.fail { color: var(--coral); }
+  .loop-verdict.pass { color: var(--green); }
+  .loop-row { display:flex; gap:10px; align-items:center; margin-top:16px; flex-wrap:wrap; }
+  .loop-btn {
+    font-family:var(--mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+    color: var(--bg); background: var(--green); border:none; border-radius:8px; padding: 9px 18px; cursor:pointer; transition: filter .15s;
+  }
+  .loop-btn:hover { filter: brightness(1.12); }
+  .loop-btn.ghost { background: transparent; color: var(--dim); border:1px solid var(--line); }
+  .loop-btn.ghost:hover { color: var(--text); }
+  .loop-attempt { font-family:var(--mono); font-size:11px; color:var(--faint); margin-left:auto; }
+
+  .chapter-end { text-align:center; margin: 80px 0 0; color: var(--faint); font-family: var(--mono); font-size: 11px; letter-spacing: .5em; }
+
+  footer {
+    margin-top: 100px; padding: 36px 30px; border: 1px solid var(--line);
+    border-radius: 16px; background: var(--surface-1); color: var(--dim); font-size: 14.5px;
+  }
+  footer p { margin: 12px 0; }
+  footer p:first-of-type strong { color: var(--text); font-family: var(--display); letter-spacing: .01em; }
+  footer .sig { font-family: var(--mono); font-size: 10px; letter-spacing: .28em; text-transform: uppercase; color: var(--faint); display:block; margin-bottom: 14px; }
+  footer .sig::before { content:"●"; color: var(--green); font-size: 7px; vertical-align: 2px; margin-right: 10px; animation:pulse 2.4s ease-in-out infinite; }
+
+  @media (max-width: 600px) {
+    article { padding-top: 60px; }
+    .layout { padding: 0 16px; }
+  }
+</style>
+</head>
+<body>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<div id="progress"></div>
+
+<div class="layout">
+
+<!-- ================= SIDEBAR ================= -->
+<nav class="toc" aria-label="Chapters">
+  <div class="toc-label">The story so far</div>
+  <ol>
+    <li><a href="#floor">The 0% floor</a></li>
+    <li><a href="#wrong">What the tiny-model debate gets wrong</a></li>
+    <li><a href="#loop">The compiler is the verifier</a></li>
+    <li><a href="#anatomy">Anatomy of one repair</a></li>
+    <li><a href="#numbers">The night it beat its teacher</a></li>
+    <li><a href="#ceiling">Where a 0.5B runs out of room</a></li>
+    <li><a href="#fine-print">The part most posts skip</a></li>
+    <li><a href="#lessons">What building it taught me</a></li>
+    <li><a href="#try">Run it yourself</a></li>
+  </ol>
+</nav>
+
+<!-- ================= ARTICLE ================= -->
+<article>
+
+<div class="kicker">A build story &nbsp;·&nbsp; nano-agent &nbsp;·&nbsp; rust-repair</div>
+<div class="statline">
+  <span style="color:var(--green)">● 0.5B PARAMETERS</span>
+  <span>CPU INFERENCE</span>
+  <span>70 FROZEN EVAL CASES</span>
+  <span>&lt;$6 TOTAL SPEND</span>
+</div>
+<h1>The tiny model that outgrew its <em>teacher</em></h1>
+
+<p class="standfirst">I gave a model 500 times smaller than a frontier LLM a broken Rust file and asked it to fix the compiler error. On the first try, it fixed nothing. Zero out of forty-five. This is the story of what I put around that model until it beat the much larger model that taught it, on cases neither had ever seen, running on four CPU cores with no GPU in sight.</p>
+
+<div class="meta">
+  <span><b>Reading time</b> ~14 min</span>
+  <span><b>Interactive</b> step through a live repair loop</span>
+  <span><b>Proof</b> every number maps to a frozen eval JSON</span>
+</div>
+
+<!-- ========== CH 1 ========== -->
+<h2 id="floor"><span class="chap">Chapter One</span>The 0% floor</h2>
+
+<p>Here is the confession up front: I did not expect this to work. I had absorbed the same folklore everyone in this space repeats, that sub-billion-parameter models are toys, fine for autocomplete and useless for anything that has to be <em>correct</em>. So when I dropped Qwen2.5-Coder-0.5B into my repair harness, pointed it at forty-five broken Rust snippets, and gave it a four-attempt budget per case, I expected a bad score. I did not expect <span class="lead-in">a zero</span>.</p>
+
+<p>Not "solved a few, missed most." Zero out of forty-five. The model would look at a compiler error, produce something that vaguely resembled a fix, and my patch engine would reject every single one because the model could not even emit the edit format correctly. It was not wrong about the code. It never got far enough to be wrong about the code.</p>
+
+<blockquote>
+  "A model that scores 0% and a model that scores 84% failed the exact same way once: neither could reliably say <em>which lines to change</em>. The difference is that one of them was never taught how."
+</blockquote>
+
+<p>That zero is the most important number in this whole project, because of what sat next to it. The <strong>same</strong> harness, same patch parser, same compiler verifier, handed to Gemini 3.6 Flash in a single shot, scored 84.4%. So the 0% was not a broken benchmark. The scaffolding worked fine. The tiny model was genuinely, completely failing at a task the loop made trivially checkable. The entire gap between 0 and 84 was headroom I could go get.</p>
+
+<div class="metrics">
+  <div class="metric"><div class="v coral">0%</div><div class="l">Untrained 0.5B · in loop</div></div>
+  <div class="metric"><div class="v violet">84.4%</div><div class="l">Gemini Flash · 1-shot</div></div>
+  <div class="metric"><div class="v cyan">86.7%</div><div class="l">Trained 0.5B · in loop</div></div>
+</div>
+
+<p class="dim" style="font-size:14.5px">Frozen eval_v1, 45 in-distribution cases. Every run goes through the identical controller, SEARCH/REPLACE parser, and <code>cargo check</code> verifier. Latency is a non-goal here; the claim is accuracy.</p>
+
+<div class="chapter-end">· · ·</div>
+
+<!-- ========== CH 2 ========== -->
+<h2 id="wrong"><span class="chap">Chapter Two</span>What the tiny-model debate gets wrong</h2>
+
+<p>We argue about the wrong thing. The whole "can small models code?" debate treats the model as the product, a lone brain that either knows the answer or does not. So we benchmark models one-shot, in isolation, and unsurprisingly the big ones win and the small ones look hopeless. Then we conclude the small ones are hopeless.</p>
+
+<p>But almost nobody ships a raw model. They ship a <em>system</em>: a model wrapped in tools, retries, and something that checks the work. And a large class of real bugs, the kind that fill your terminal with red every day, are not open-ended reasoning problems at all. They are <strong>bounded and structurally identifiable</strong>. The compiler already told you exactly what is wrong and exactly where. The task is not "be brilliant." It is "make the correct small edit, in a valid format, and prove it compiled."</p>
+
+<table>
+  <thead><tr><th>The framing</th><th>The mistake it makes</th><th>What actually holds</th></tr></thead>
+  <tbody>
+    <tr><td>Frontier per call</td><td class="lose">Pay a frontier model to fix a missing <code>&amp;</code>. Correct, but slow and expensive at scale, and your code leaves the building.</td><td>Reserve the frontier for the hard 5%, not the routine 95%.</td></tr>
+    <tr><td>Tiny model alone</td><td class="lose">One-shot a 0.5B and watch it fail the patch format. Concludes small = useless.</td><td>The model was never the whole system. It was missing the loop.</td></tr>
+    <tr><td>Verified loop</td><td class="win">Model proposes, compiler disposes, retry on failure, escalate only when the budget runs out.</td><td>The verifier supplies the correctness the model lacks.</td></tr>
+  </tbody>
+</table>
+
+<p><span class="lead-in">The bet behind nano-agent is simple:</span> a large fraction of bounded, structurally identifiable failures can be repaired by a tiny model <strong>inside a verified loop</strong>, at a fraction of the cost and latency of a frontier call. The model is one component. The recipe, tool plus verifier plus patch engine plus bounded retry plus escalation, is the product.</p>
+
+<div class="aside good">
+  <span class="tag">The reframe</span>
+  <p>The compiler, the linter, the type checker, the policy engine: these are <strong>free, perfect verifiers</strong> we already trust. They cannot write the fix, but they can judge one instantly and without hallucinating. Pair a cheap proposer with a perfect judge and you change what "smart enough" means.</p>
+</div>
+
+<div class="chapter-end">· · ·</div>
+
+<!-- ========== CH 3 ========== -->
+<h2 id="loop"><span class="chap">Chapter Three</span>The compiler is the verifier</h2>
+
+<p>The recipe I built for Rust is called <code>rust-repair</code>, and the shape of it is deliberately dumb. There is no agent framework, no planner, no tool-selection reasoning. There is a loop, and the loop trusts <code>cargo check</code> to be the arbiter of truth.</p>
+
+<div class="mermaid-frame"><div class="frame-bar"><span class="dot"></span><span>the verified repair loop</span><span class="live">rendered live</span></div>
+<div class="mermaid">
+flowchart LR
+    B["Broken crate"] --> V{"cargo check"}
+    V -->|"compiles"| DONE["Done"]
+    V -->|"error + span"| CTX["Build context:<br/>diagnostic, file, code"]
+    CTX --> M["Tiny model<br/>proposes patch"]
+    M --> P["SEARCH / REPLACE<br/>patch engine"]
+    P -->|"applies"| V
+    P -->|"malformed"| ESC
+    V -->|"budget left"| CTX
+    V -->|"budget spent"| ESC["Escalate to<br/>frontier model"]
+    style B fill:#1A0E12,stroke:#FF7A8A,color:#FF7A8A
+    style V fill:#0A161A,stroke:#FFC46B,color:#FFC46B
+    style DONE fill:#0A161A,stroke:#46E39B,color:#46E39B
+    style CTX fill:#10232A,stroke:#4FD6E0,color:#EAF5F1
+    style M fill:#0A161A,stroke:#4FD6E0,color:#4FD6E0
+    style P fill:#0A161A,stroke:#A48FFF,color:#A48FFF
+    style ESC fill:#0A0E17,stroke:#5E7C76,color:#9FBBB4
+</div></div>
+
+<p>Two design decisions carried most of the weight, and both came from watching tiny models fail.</p>
+
+<p><strong>SEARCH/REPLACE, not unified diff.</strong> My first instinct was to have the model emit a normal <code>diff</code>. That was the source of a lot of that original 0%. Sub-billion models mangle diff headers, miscount line numbers, and botch the <code>@@</code> hunks. So the patch format is a plain "find this exact block, replace it with that block." No line arithmetic, no headers to corrupt. A grammar constraint forces valid JSON contract output on the way out, so the model physically cannot return a shape the parser rejects.</p>
+
+<p><strong>The context is the compiler's own words.</strong> The model does not get "here is a file, find the bug." It gets the rendered diagnostic, the file name, the primary error span, and the surrounding code. The compiler has already done the localization. The model just has to act on it.</p>
+
+<details>
+  <summary>Why not just always call the frontier model?</summary>
+  <div class="inner">
+    <p>Because most of these fixes are boring, and boring is exactly what a tiny local model should own. Every routine <code>E0308</code> type mismatch you send to a frontier API costs money, adds a network round trip, and ships your proprietary source code to someone else's servers. The escalation path is still there for the genuinely hard cases, but it fires as the exception, not the default. The frontier model is the teacher and the fallback, <strong>not the runtime dependency for ordinary work.</strong></p>
+  </div>
+</details>
+
+<div class="chapter-end">· · ·</div>
+
+<!-- ========== CH 4 ========== -->
+<h2 id="anatomy"><span class="chap">Chapter Four</span>Anatomy of one repair</h2>
+
+<p>Abstract loops are easy to nod along to and hard to believe. So here is one running. This walks a real category of case the way the controller sees it: a broken snippet, the model's proposal, the compiler's verdict, and the retry if the first attempt does not take. Step through it.</p>
+
+<!-- INTERACTIVE: repair loop stepper -->
+<div class="loop-lab">
+  <div class="lab-bar"><span class="dot"></span><span>repair loop · single case</span><span class="live" id="loop-live">idle</span></div>
+  <div class="lab-body">
+    <div class="loop-stage" id="loop-stage">Stage: <b>broken input</b></div>
+    <div class="loop-code" id="loop-code"></div>
+    <div class="loop-verdict" id="loop-verdict"></div>
+    <div class="loop-row">
+      <button class="loop-btn" id="loop-step">Step</button>
+      <button class="loop-btn ghost" id="loop-reset">Reset</button>
+      <span class="loop-attempt" id="loop-attempt">attempt 0 / 4</span>
+    </div>
+  </div>
+</div>
+
+<p class="dim" style="font-size:14.5px">This is a re-enactment of the controller's real state machine, running locally in your browser. The compiler verdicts shown are the same ones <code>cargo check</code> returns for these error classes.</p>
+
+<div class="chapter-end">· · ·</div>
+
+<!-- ========== CH 5 ========== -->
+<h2 id="numbers"><span class="chap">Chapter Five</span>The night it beat its teacher</h2>
+
+<p>Getting the untrained 0% up to a real score meant teaching the model the one thing it could not do: emit a valid patch for a localized error. I did that with supervised fine-tuning on trajectories from a teacher model. And here is the deliberate, load-bearing choice of this whole project: <strong>the teacher is not a frontier model.</strong> It is Gemini 3.6 Flash, a cheap flash-class model that itself only scores in the middle of the pack.</p>
+
+<p>Why handicap myself? Because the thesis I actually care about is not "a nano model can match GPT." It is "a nano model can <em>beat the model that taught it</em>." A distillation that surpasses its own source is a far more interesting claim than one that merely approaches a frontier it was directly trained on.</p>
+
+<p>One SFT pass on 348 teacher trajectories took the in-distribution score from 0% to 86.7%, edging past the teacher's own 84.4% on that eval. Victory, I thought. Then I ran the honest test, and it humbled me.</p>
+
+<div class="aside bad">
+  <span class="tag">The overfitting slap</span>
+  <p>I hand-authored 25 genuinely novel out-of-distribution cases, error classes and code shapes the model had never trained on, and froze them. The 86.7% in-distribution model scored <strong>44%</strong> on them. The single-site-edit skill had memorized a pattern, not learned to generalize. That gap between 86.7 and 44 is the difference between a benchmark number and a real one.</p>
+</div>
+
+<p>So the real work began: a failure-driven curriculum. I found the skill <em>classes</em> the model kept failing, ten of them, from iterator-collect mismatches to trait-method insertion, and had the teacher generate fresh training cases for exactly those classes. Never the test cases themselves, always new instances of the same skill. The eval stayed frozen and untouched. This is the whole ballgame for honest evaluation, so I will say it plainly: <span class="lead-in">you never train on the test; you train on new cases of the skill the test measures.</span></p>
+
+<p>That curriculum lifted out-of-distribution accuracy from 44% to 60%. And 60 crossed a line that mattered: the teacher, Gemini Flash, scores 56% on those same held-out cases. <strong>The 0.5B had beaten the model that taught it, on cases neither had ever seen.</strong></p>
+
+<div class="mermaid-frame"><div class="frame-bar"><span class="dot"></span><span>the distillation pipeline</span><span class="live">rendered live</span></div>
+<div class="mermaid">
+flowchart TB
+    T["Teacher model<br/>generates trajectories"] --> F{"cargo-verified?<br/>broken fails, fixed compiles"}
+    F -->|"no"| DROP["Discarded"]
+    F -->|"yes"| D["SFT dataset"]
+    D --> SFT["Full bf16 SFT<br/>Qwen2.5-Coder-0.5B"]
+    SFT --> Q["q8_0 GGUF<br/>~600MB, CPU"]
+    Q --> E["Frozen OOD eval<br/>25 held-out cases"]
+    E -->|"failing classes"| C["Curriculum:<br/>new cases, same classes"]
+    C --> T
+    style T fill:#0A161A,stroke:#A48FFF,color:#A48FFF
+    style F fill:#0A161A,stroke:#FFC46B,color:#FFC46B
+    style DROP fill:#0A0E17,stroke:#5E7C76,color:#9FBBB4
+    style D fill:#10232A,stroke:#4FD6E0,color:#EAF5F1
+    style SFT fill:#0A161A,stroke:#4FD6E0,color:#4FD6E0
+    style Q fill:#0A161A,stroke:#46E39B,color:#46E39B
+    style E fill:#0A161A,stroke:#46E39B,color:#46E39B
+    style C fill:#10232A,stroke:#A48FFF,color:#EAF5F1
+</div></div>
+
+<p>Then one more experiment, because I wanted to know what was capping the score: the model, or the teacher? I reran the same curriculum on the same ten failing classes, but this time distilled from a genuine frontier teacher (a model that solves 100% of the OOD set) instead of Gemini Flash. The out-of-distribution score went from 60% to <strong>72%</strong>. A stronger teacher is a real lever on structural generalization. But notice the jump is bounded, and that boundary is the most honest part of the whole result.</p>
+
+<div style="overflow-x:auto">
+<table>
+  <thead><tr><th>Model</th><th>OOD rate</th><th>Role</th></tr></thead>
+  <tbody>
+    <tr><td>gpt-class frontier</td><td>100% (25/25)</td><td>comparison baseline only</td></tr>
+    <tr><td>DeepSeek-V4-Flash</td><td>84% (21/25)</td><td>comparison baseline</td></tr>
+    <tr><td>grok-class</td><td>76% (19/25)</td><td>comparison baseline</td></tr>
+    <tr><td>Gemini Flash (teacher)</td><td>56% (14/25)</td><td class="lose">the bar to beat</td></tr>
+    <tr><td>Trained 0.5B · v2 (single-site only)</td><td>44% (11/25)</td><td>pre-curriculum</td></tr>
+    <tr><td>Trained 0.5B · v3 (+ Flash curriculum)</td><td class="win">60% (15/25)</td><td>beats its teacher</td></tr>
+    <tr class="row-hero"><td>Trained 0.5B · v4 (+ frontier curriculum)</td><td class="win">72% (18/25)</td><td>+16 over the teacher bar</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>A 0.5B model, quantized to a 600MB file, running on four ARM CPU cores with no GPU, scoring 72% on held-out structural repair. Sixteen points clear of the flash-class model that generated its training data. That is the headline, and it is a real, frozen-eval number.</p>
+
+<div class="chapter-end">· · ·</div>
+
+<!-- ========== CH 6 ========== -->
+<h2 id="ceiling"><span class="chap">Chapter Six</span>Where a 0.5B runs out of room</h2>
+
+<p>Seventy-two percent is a win, not a solved problem, and the failures are more interesting than the successes. Seven cases still fail even after distilling from a teacher that solves all of them. And they cluster. Almost every remaining failure is in one family: <strong>insert a whole new trait method, or a whole missing import.</strong> Not "change this token," but "synthesize several correct lines and place them in the right scope."</p>
+
+<p>That pattern tells me something the aggregate score hides. When the fix is a localized edit, the 0.5B has learned to generalize. When the fix requires composing a multi-line structural change, it hits a wall that <em>more data from a better teacher did not move.</em> That is the signature of a capacity limit, not a coverage gap. The next lever is not another curriculum round. It is reinforcement learning on that hard cluster, or a slightly larger base model, and that is a decision I want to make with data rather than vibes.</p>
+
+<div class="aside warn">
+  <span class="tag">Reading the residual failures</span>
+  <p>Going from the Flash-teacher curriculum to the frontier-teacher curriculum solved five new categories but re-broke two easy single-site ones that were not in the new curriculum (noise-level regressions, not in the training set). Net, a clean <strong>+12 points</strong>, zero regressions among the classes actually targeted. The trait-method and import-insertion cluster stayed stubbornly unsolved through both. That consistency is the signal.</p>
+</div>
+
+<div class="chapter-end">· · ·</div>
+
+<!-- ========== CH 7 ========== -->
+<h2 id="fine-print"><span class="chap">Chapter Seven</span>The part most posts skip</h2>
+
+<p>Every result in this post is real, frozen, and reproducible from the repo. It is also narrow, and I would rather tell you the boundaries than let you assume they are wider than they are.</p>
+
+<p><strong>One model family, one seed.</strong> This is Qwen2.5-Coder-0.5B, trained once per configuration. I have not run multi-seed error bars or swept model families. The direction is robust across four training rounds, but the exact point estimates carry single-run variance. I have labeled them as measured figures, not statistical claims.</p>
+
+<p><strong>The eval sets are small.</strong> Forty-five in-distribution cases, twenty-five out-of-distribution. Small enough that a single case is worth 4 percentage points on the OOD set. They are hand-authored, frozen, and verified to have zero content overlap with training, but they are not a thousand-case benchmark. Treat them as a rigorous probe, not a leaderboard.</p>
+
+<p><strong>Latency is deliberately not a claim.</strong> The thesis is accuracy at low cost, running locally and privately. I did not tune or report throughput, and nothing here is a performance benchmark. The 600MB model runs comfortably on a CPU; that is the property I care about, not tokens per second.</p>
+
+<p><strong>Rust only, so far.</strong> The whole result is one language and one verifier, <code>cargo check</code>. The architecture is built to be language-agnostic (the controller does not know which language it repairs), but SQL and Terraform recipes are planned, not proven. Do not generalize a Rust result to your stack until the recipe exists.</p>
+
+<p><strong>It cost under six dollars.</strong> Total. All four training rounds on a rented GPU came to about $1.26; teacher and evaluation API calls were a few dollars more. That is not a disclaimer, it is part of the point: the entire experiment fit inside a coffee budget, which is exactly what makes the "don't pay frontier prices for routine repairs" argument concrete instead of theoretical.</p>
+
+<div class="chapter-end">· · ·</div>
+
+<!-- ========== CH 8 ========== -->
+<h2 id="lessons"><span class="chap">Chapter Eight</span>What building it taught me</h2>
+
+<p><strong>The verifier is the unlock, not the model.</strong> The single highest-leverage decision in this project was letting a free, perfect judge (the compiler) sit in the loop. It turned an unreliable proposer into a reliable system. Wherever you have a cheap oracle for correctness, you can probably shrink the model doing the proposing.</p>
+
+<p><strong>In-distribution scores lie, and they lie flatteringly.</strong> 86.7% felt like success until the frozen OOD set said 44%. If I had shipped on the in-distribution number I would have shipped a mirage. The held-out set, authored before training and never touched, is the only number I trust, and building it was the most valuable hour I spent.</p>
+
+<p><strong>A student can surpass its teacher, if you teach the right skills.</strong> The curriculum did not make the model a better mimic of Gemini Flash. It made it better than Gemini Flash at the specific classes I distilled, because the loop lets the student compound small correct edits the teacher would have one-shot and missed.</p>
+
+<p><strong>Know your capacity ceiling by its shape.</strong> The residual failures were not random, they were a family. That is how you tell "needs more data" from "needs a bigger model." Random failures say curriculum. Clustered failures that survive a perfect teacher say capacity.</p>
+
+<div class="chapter-end">· · ·</div>
+
+<!-- ========== CH 9 ========== -->
+<h2 id="try"><span class="chap">Chapter Nine</span>Run it yourself</h2>
+
+<p>The whole thing is open source under Apache-2.0: the controller, the SEARCH/REPLACE patch engine, the Rust verifier, the data generators, and every frozen eval JSON behind the numbers above. Nothing in this post is a claim you have to take on faith; each figure maps to a result file in the repo.</p>
+
+<pre><code>git clone https://github.com/mailtotanvir/nano-agent.git
+cd nano-agent
+
+# build the recipe
+cargo build --release
+
+# fix a broken crate with the tiny model (llama.cpp server on :8080)
+./target/release/rust-repair --path ./broken-crate --backend llama \
+    --model qwen2.5-coder-0.5b-instruct
+
+# every run appends a full trajectory: diagnostics, each proposal,
+# each applied patch, each re-verify, and the terminal outcome
+cat trajectories.jsonl</code></pre>
+
+<p>The results narrative, the exact eval tables, and the reproducibility notes live in <code>recipes/rust-repair/experiments/RESULTS.md</code>. Break the eval, beat the score, or point the recipe at a language I have not tried yet. Every bug your compiler can name is a bug a tiny model in a verified loop might be able to fix, for a fraction of a cent, without your code ever leaving the room.</p>
+
+<footer>
+  <span class="sig">End of transmission</span>
+  <p><strong>nano-agent</strong> is a cookbook of tiny, verified repair agents, Apache-2.0. A 0.5B model that went 0% &rarr; 86.7% in-distribution, then 44% &rarr; 72% on frozen out-of-distribution repair, beating its own flash-class teacher by 16 points, on a CPU, for under six dollars. Every number in this post maps to a frozen eval JSON in the repository.</p>
+  <p>Code and full results: <a href="https://github.com/mailtotanvir/nano-agent">github.com/mailtotanvir/nano-agent</a>. Part of an ongoing series on building small, honest, verifiable AI systems.</p>
+</footer>
+
+</article>
+</div>
+
+<script>
+  // ---------- mermaid: dark theme matching the page palette ----------
+  const mermaidTheme = {
+    startOnLoad: false,
+    theme: "base",
+    darkMode: true,
+    themeVariables: {
+      fontFamily: "'Plus Jakarta Sans', sans-serif",
+      fontSize: "13px",
+      primaryColor: "#0A161A",
+      primaryTextColor: "#EAF5F1",
+      primaryBorderColor: "#46E39B",
+      lineColor: "#7C9A94",
+      secondaryColor: "#10232A",
+      tertiaryColor: "#0A0E17",
+    },
+    flowchart: { curve: "basis", padding: 14 },
+  };
+  function renderMermaid() {
+    if (!window.mermaid) return setTimeout(renderMermaid, 120);
+    window.mermaid.initialize(mermaidTheme);
+    window.mermaid.run({ querySelector: ".mermaid" });
+  }
+  renderMermaid();
+
+  // ---------- reading progress ----------
+  const bar = document.getElementById('progress');
+  const doc = document.documentElement;
+  window.addEventListener('scroll', () => {
+    const total = doc.scrollHeight - window.innerHeight;
+    bar.style.width = (total > 0 ? (window.scrollY / total) * 100 : 0) + '%';
+  }, { passive: true });
+
+  // ---------- active chapter highlighting ----------
+  const links = [...document.querySelectorAll('nav.toc a')];
+  const targets = links.map(a => document.querySelector(a.getAttribute('href'))).filter(Boolean);
+  const spy = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (!e.isIntersecting) return;
+      links.forEach(l => l.classList.toggle('active', l.getAttribute('href') === '#' + e.target.id));
+    });
+  }, { rootMargin: '-20% 0px -65% 0px' });
+  targets.forEach(t => spy.observe(t));
+
+  // ---------- repair loop stepper ----------
+  // A faithful re-enactment of the controller state machine on one E0308-class case.
+  const STEPS = [
+    {
+      stage: 'broken input · <b>cargo check</b> fails',
+      code: 'fn total(items: &[i32]) -> i32 {\n    items.iter().sum::&lt;i32&gt;()\n}\n\nfn main() {\n    let n = total(&[1, 2, 3]);\n    <span class="del">println!("total = " + n);</span>\n}',
+      verdict: 'error[E0369]: cannot add `{integer}` to `&str`  ·  src/main.rs:7',
+      vclass: 'fail',
+      live: 'compiling', attempt: 0
+    },
+    {
+      stage: 'tiny model · <b>proposes patch</b> (attempt 1)',
+      code: 'SEARCH:\n<span class="del">    println!("total = " + n);</span>\nREPLACE:\n<span class="add">    println!("total = {}", n);</span>',
+      verdict: 'patch applies cleanly → re-running cargo check…',
+      vclass: '',
+      live: 'proposing', attempt: 1
+    },
+    {
+      stage: '<b>cargo check</b> · re-verify',
+      code: 'fn main() {\n    let n = total(&[1, 2, 3]);\n    <span class="add">println!("total = {}", n);</span>\n}',
+      verdict: '✓ compiles — 0 errors. repair verified in 1 attempt.',
+      vclass: 'pass',
+      live: 'verified', attempt: 1
+    }
+  ];
+  let si = -1;
+  const elStage = document.getElementById('loop-stage');
+  const elCode = document.getElementById('loop-code');
+  const elVerdict = document.getElementById('loop-verdict');
+  const elAttempt = document.getElementById('loop-attempt');
+  const elLive = document.getElementById('loop-live');
+  const elStep = document.getElementById('loop-step');
+
+  function render() {
+    if (si < 0) {
+      elStage.innerHTML = 'Stage: <b>ready</b>';
+      elCode.innerHTML = '<span class="dim">// press Step to run one repair through the loop</span>';
+      elVerdict.className = 'loop-verdict'; elVerdict.textContent = '';
+      elAttempt.textContent = 'attempt 0 / 4';
+      elLive.textContent = 'idle';
+      elStep.textContent = 'Step';
+      return;
+    }
+    const s = STEPS[si];
+    elStage.innerHTML = 'Stage: ' + s.stage;
+    elCode.innerHTML = s.code;
+    elVerdict.className = 'loop-verdict ' + s.vclass;
+    elVerdict.textContent = s.verdict;
+    elAttempt.textContent = 'attempt ' + s.attempt + ' / 4';
+    elLive.textContent = s.live;
+    elLive.style.color = s.vclass === 'pass' ? 'var(--green)' : s.vclass === 'fail' ? 'var(--coral)' : 'var(--amber)';
+    elStep.textContent = si >= STEPS.length - 1 ? 'Done ✓' : 'Step';
+  }
+  elStep.addEventListener('click', () => {
+    if (si < STEPS.length - 1) si++;
+    render();
+  });
+  document.getElementById('loop-reset').addEventListener('click', () => { si = -1; elLive.style.color = 'var(--faint)'; render(); });
+  render();
+</script>
+</body>
+</html>
