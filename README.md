@@ -2,6 +2,8 @@
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22293159.svg)](https://doi.org/10.5281/zenodo.22293159)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+[![Model on HF](https://img.shields.io/badge/%F0%9F%A4%97%20Model-nano--agent--rust--repair--0.5b-yellow)](https://huggingface.co/mailtotanvir/nano-agent-rust-repair-0.5b)
+[![Blog](https://img.shields.io/badge/Read-the%20write--up-46E39B)](https://mailtotanvir.github.io/nano-agent/blog.html)
 
 A cookbook of **tiny, verified repair agents**. Each recipe pairs a small
 open-weight model (0.1B–1.5B) with a deterministic controller that loops a real
@@ -85,7 +87,12 @@ cargo clippy --workspace -- -D warnings
 
 ## Paper & citation
 
-The accompanying technical report is in [`paper/nano-agent.pdf`](paper/nano-agent.pdf).
+The accompanying technical report is in [`paper/nano-agent.pdf`](paper/nano-agent.pdf)
+(read it in your browser: [mailtotanvir.github.io/nano-agent/paper/nano-agent.pdf](https://mailtotanvir.github.io/nano-agent/paper/nano-agent.pdf)).
+The write-up is at [mailtotanvir.github.io/nano-agent](https://mailtotanvir.github.io/nano-agent/blog.html),
+and the trained model is on Hugging Face:
+[`mailtotanvir/nano-agent-rust-repair-0.5b`](https://huggingface.co/mailtotanvir/nano-agent-rust-repair-0.5b).
+
 An archived, citable snapshot of this repository is on Zenodo:
 
 > Ahmed, T. (2026). *nano-agent: A Tiny Model Beats Its Teacher — Verified-Loop
