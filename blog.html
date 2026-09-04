@@ -309,9 +309,11 @@
     <li><a href="#loop">The compiler is the verifier</a></li>
     <li><a href="#anatomy">Anatomy of one repair</a></li>
     <li><a href="#numbers">The night it beat its teacher</a></li>
+    <li><a href="#underhood">Under the hood: the choices that made it work</a></li>
     <li><a href="#ceiling">Where a 0.5B runs out of room</a></li>
     <li><a href="#fine-print">The part most posts skip</a></li>
     <li><a href="#lessons">What building it taught me</a></li>
+    <li><a href="#matters">Who this is for, and where it heads</a></li>
     <li><a href="#try">Run it yourself</a></li>
   </ol>
 </nav>
@@ -331,9 +333,9 @@
 <p class="standfirst">I gave a model 500 times smaller than a frontier LLM a broken Rust file and asked it to fix the compiler error. On the first try, it fixed nothing. Zero out of forty-five. This is the story of what I put around that model until it beat the much larger model that taught it, on cases neither had ever seen, running on four CPU cores with no GPU in sight.</p>
 
 <div class="meta">
-  <span><b>Reading time</b> ~14 min</span>
+  <span><b>Reading time</b> ~22 min</span>
   <span><b>Interactive</b> step through a live repair loop</span>
-  <span><b>Proof</b> every number maps to a frozen eval JSON</span>
+  <span><b>Under the hood</b> model, curriculum, SFT, teacher, and why no RL</span>
 </div>
 
 <!-- ========== CH 1 ========== -->
@@ -588,8 +590,112 @@ flowchart TB
 
 <div class="chapter-end">· · ·</div>
 
-<!-- ========== CH 6 ========== -->
-<h2 id="ceiling"><span class="chap">Chapter Six</span>Where a 0.5B runs out of room</h2>
+<!-- ========== CH 6: UNDER THE HOOD ========== -->
+<h2 id="underhood"><span class="chap">Chapter Six</span>Under the hood: the choices that made it work</h2>
+
+<p>The story so far is the what. This is the why. Every decision below was a fork in the road where the obvious choice was wrong, and the reasons are the actual transferable content of this project. If you skim one section, make it this one.</p>
+
+<h3>Why a 0.5B, and why this exact base</h3>
+
+<p>The spec started with a rule I am glad I followed: <span class="lead-in">do not open by deciding a parameter count is optimal.</span> The plan was to sweep roughly 0.1B, 0.3B, 0.6B, and a 1B control, and let the task tell me the floor. In practice the 0.5B answered the question so cleanly that a full sweep would have been ceremony. Qwen2.5-Coder-0.5B-Instruct was the pick for three concrete reasons, not vibes:</p>
+
+<ul>
+  <li><strong>Code-pretrained.</strong> A code base model already knows Rust syntax and the shape of a compiler diagnostic. I am not spending my tiny parameter budget teaching it what a <code>trait</code> is; I am spending it on the repair convention.</li>
+  <li><strong>Instruct-tuned.</strong> It already follows a system prompt and emits structured output, which is the entire game when your contract is a JSON patch.</li>
+  <li><strong>It quantizes to a 600MB GGUF.</strong> At q8_0 the whole model fits in memory on a 4-core ARM box and serves patches in seconds on CPU. That is the deployment story, and it only exists at this size.</li>
+</ul>
+
+<p>The point was never "0.5B is the magic number." It was to find the smallest model that, <em>inside the loop</em>, closes the gap. Bigger bases are a lever I am holding in reserve for the one place the 0.5B provably runs out of room, which is the next chapter.</p>
+
+<h3>The SFT setup, and why each knob is where it is</h3>
+
+<p>The training is deliberately unexotic. Full bf16 fine-tune, no LoRA, no QLoRA, on a single 24GB L4. A sub-1B model does not need parameter-efficient tricks to fit in 24GB, and full fine-tuning gives the cleanest signal, so QLoRA stayed in the code as an option for the 1.5B control I never needed. The settings that mattered:</p>
+
+<table>
+  <thead><tr><th>Choice</th><th>Value</th><th>Why</th></tr></thead>
+  <tbody>
+    <tr><td>Loss masking</td><td><code>assistant_only_loss</code></td><td>Loss is computed only on the assistant's JSON patch, never on the prompt or the diagnostic. The model is graded on the fix, not on echoing the question.</td></tr>
+    <tr><td>Epochs</td><td>3</td><td>Enough to lock in the patch convention; loss went 0.68 &rarr; 0.15, token accuracy 0.83 &rarr; 0.96. More epochs on a few hundred examples is a memorization risk, not a gain.</td></tr>
+    <tr><td>Learning rate</td><td>1e-5, cosine</td><td>Low and smooth. This is a format-and-skill graft onto a competent base, not a personality transplant. High LR erases the base's Rust knowledge.</td></tr>
+    <tr><td>Batch / accum</td><td>8 &times; 2 = 16</td><td>The largest effective batch that keeps the L4 comfortable, for a stable gradient on a small dataset.</td></tr>
+    <tr><td>Verified split</td><td>10% eval, seed 7</td><td>An in-training eval split, kept entirely separate from the frozen OOD set, so I can read fit without ever touching the real test.</td></tr>
+  </tbody>
+</table>
+
+<p>The tell is in the numbers across rounds: eval token accuracy sat at ~0.95 for v2, v3, and v4, essentially flat, while OOD accuracy climbed 44 &rarr; 60 &rarr; 72. <span class="lead-in">The fit did not change; the coverage did.</span> That is the fingerprint of a data problem being solved with data, and it is why I could rule out "train harder" as the lever.</p>
+
+<h3>Curriculum: how the training data was chosen, then grown</h3>
+
+<p>The data pipeline is the part I would defend hardest, because it is what makes the numbers honest. Nothing is scraped and nothing is trusted on faith. Every single training example is <strong>generated, then confirmed by the real compiler before it is allowed in.</strong></p>
+
+<div class="mermaid-frame"><div class="frame-bar"><span class="dot"></span><span>the data pipeline · verify-or-discard</span><span class="live">every case cargo-checked</span></div>
+<div class="mermaid">
+flowchart LR
+    S["seed_gen.py<br/>14 templates → compiling Rust"] --> BR["break_it.py<br/>labeled single-site mutation"]
+    BR --> V1{"cargo check<br/>fails with intended code?"}
+    V1 -->|"no"| DROP1["discard"]
+    V1 -->|"yes"| C["corpus (labeled by error class)"]
+    C --> SP["split_eval.py<br/>stratified, leak-checked"]
+    SP --> EV["frozen eval (never trained on)"]
+    SP --> TP["train pool"]
+    TP --> TE["teacher through the SAME controller"]
+    TE --> V2{"fix compiles?"}
+    V2 -->|"no"| DROP2["discard"]
+    V2 -->|"yes"| SFT["SFT positives"]
+    style S fill:#0A161A,stroke:#4FD6E0,color:#4FD6E0
+    style BR fill:#0A161A,stroke:#4FD6E0,color:#EAF5F1
+    style V1 fill:#0A161A,stroke:#FFC46B,color:#FFC46B
+    style V2 fill:#0A161A,stroke:#FFC46B,color:#FFC46B
+    style DROP1 fill:#0A0E17,stroke:#5E7C76,color:#9FBBB4
+    style DROP2 fill:#0A0E17,stroke:#5E7C76,color:#9FBBB4
+    style C fill:#10232A,stroke:#4FD6E0,color:#EAF5F1
+    style EV fill:#0A161A,stroke:#46E39B,color:#46E39B
+    style TP fill:#10232A,stroke:#A48FFF,color:#EAF5F1
+    style TE fill:#0A161A,stroke:#A48FFF,color:#A48FFF
+    style SFT fill:#0A161A,stroke:#46E39B,color:#46E39B
+</div></div>
+
+<p>The first dataset (v2) was 348 verified teacher trajectories over twelve error classes generated by <code>break_it.py</code>, which makes <strong>single-site mutations</strong>: flip one token, drop one <code>&amp;</code>, remove one <code>mut</code>. That taught the surgical-edit skill beautifully and overfit to it, which is exactly how the 86.7%-in-distribution model scored 44% on the held-out set.</p>
+
+<p>The fix was not more of the same data. It was a <strong>failure-driven curriculum</strong>: I read the frozen eval's failures, identified the skill <em>classes</em> the model kept missing, and generated fresh, harder cases for exactly those classes with a second generator, <code>structural_cases.py</code>, that produces multi-line and structural bugs the single-site generator can never make. The rule I will repeat until it is boring:</p>
+
+<blockquote>
+  "You never train on the test. You train on new cases of the skill the test measures. The eval stays frozen, hash-checked for zero overlap, forever."
+</blockquote>
+
+<p>That took v3 to 60%. For v4 I generated 250 brand-new cases, 25 in each of the ten still-failing classes, verified them disjoint from the eval by content hash, and only then distilled them. The dataset grew 348 &rarr; 489 &rarr; 739, and every increment was targeted at a measured, named failure, not volume for its own sake.</p>
+
+<h3>Teacher selection: the deliberate handicap</h3>
+
+<p>Here is the choice most people would get backwards. The obvious move is to distill from the strongest teacher you can afford. I did the opposite for the headline result and used <strong>Gemini Flash, a mid-tier model that itself only scores 56% on the held-out set</strong>, as the teacher of record. The reason is the whole thesis: a distillation that <em>surpasses its own source</em> is a genuinely interesting claim; one that merely approaches a frontier it trained directly on is not.</p>
+
+<div class="aside">
+  <span class="tag">Why the loop lets a student beat its teacher</span>
+  <p>The teacher's 56% is its <strong>one-shot</strong> score. The student runs the same proposer inside a <strong>verified retry loop</strong>: propose, let the compiler judge, and try again on the classes it was trained to handle. The loop compounds correct small edits that a single teacher shot would miss. The student is not a better model than the teacher; it is the teacher's distilled skill wrapped in a mechanism the teacher never had.</p>
+</div>
+
+<p>Then, as a separate and clearly-labeled experiment, I swapped in a frontier teacher (100% on the held-out set) to answer one question: is 60% capped by the model or by the teacher? That is the v4 jump to 72%. It is a teacher-strength ablation, not a change of thesis. The project's headline stays "a nano beats its flash-class teacher"; the frontier teacher only measures the ceiling.</p>
+
+<h3>Why no RL, yet</h3>
+
+<p>The spec left the door open for RL or a GRPO-style verifier-optimization loop, and I have a perfect reward signal sitting right there: the compiler returns a clean pass/fail on every attempt, which is exactly what RL wants. So why is there no RL in these results? <span class="lead-in">Because SFT had not stopped working yet, and you do not reach for the heavier tool while the lighter one is still paying off.</span></p>
+
+<p>Each curriculum round was still buying double-digit OOD gains (+16, then +12) at a cost of about fifty cents of GPU time. RL is more compute, more instability, and more moving parts, and spending it while plain SFT is still climbing would be premature optimization of the literal kind. The honest trigger for RL is a <em>specific, measured</em> plateau, and the next chapter shows exactly where that plateau finally appeared, and why it points at RL or a bigger base rather than another curriculum round.</p>
+
+<details>
+  <summary>The full experimental ladder, round by round</summary>
+  <div class="inner">
+    <p><strong>Phase 1 (floor).</strong> Untrained 0.5B in the loop: 0/45. Follows the JSON contract but not the SEARCH/REPLACE convention, so no patch applies. The same parser scores Gemini Flash 38/45, proving the 0% is the model, not the harness.</p>
+    <p><strong>Phase 2 (v2).</strong> SFT on 348 single-site teacher trajectories: 86.7% in-distribution, 44% OOD. The overfitting slap.</p>
+    <p><strong>Phase 3b (v3).</strong> + 141 structural Gemini trajectories &rarr; 489 examples. OOD 44% &rarr; 60%, zero regressions, crosses the 56% teacher bar.</p>
+    <p><strong>Phase 4 (v4).</strong> + 250 structural cases from a frontier teacher &rarr; 739 examples. OOD 60% &rarr; 72%. Fit stays flat (eval token accuracy ~0.95 throughout), so the gain is coverage, not fit.</p>
+  </div>
+</details>
+
+<div class="chapter-end">· · ·</div>
+
+<!-- ========== CH 7 ========== -->
+<h2 id="ceiling"><span class="chap">Chapter Seven</span>Where a 0.5B runs out of room</h2>
 
 <p>Seventy-two percent is a win, not a solved problem, and the failures are more interesting than the successes. Seven cases still fail even after distilling from a teacher that solves all of them. And they cluster. Almost every remaining failure is in one family: <strong>insert a whole new trait method, or a whole missing import.</strong> Not "change this token," but "synthesize several correct lines and place them in the right scope."</p>
 
@@ -603,7 +709,7 @@ flowchart TB
 <div class="chapter-end">· · ·</div>
 
 <!-- ========== CH 7 ========== -->
-<h2 id="fine-print"><span class="chap">Chapter Seven</span>The part most posts skip</h2>
+<h2 id="fine-print"><span class="chap">Chapter Eight</span>The part most posts skip</h2>
 
 <p>Every result in this post is real, frozen, and reproducible from the repo. It is also narrow, and I would rather tell you the boundaries than let you assume they are wider than they are.</p>
 
@@ -620,7 +726,7 @@ flowchart TB
 <div class="chapter-end">· · ·</div>
 
 <!-- ========== CH 8 ========== -->
-<h2 id="lessons"><span class="chap">Chapter Eight</span>What building it taught me</h2>
+<h2 id="lessons"><span class="chap">Chapter Nine</span>What building it taught me</h2>
 
 <p><strong>The verifier is the unlock, not the model.</strong> The single highest-leverage decision in this project was letting a free, perfect judge (the compiler) sit in the loop. It turned an unreliable proposer into a reliable system. Wherever you have a cheap oracle for correctness, you can probably shrink the model doing the proposing.</p>
 
@@ -632,8 +738,36 @@ flowchart TB
 
 <div class="chapter-end">· · ·</div>
 
-<!-- ========== CH 9 ========== -->
-<h2 id="try"><span class="chap">Chapter Nine</span>Run it yourself</h2>
+<!-- ========== CH 10: WHY IT MATTERS ========== -->
+<h2 id="matters"><span class="chap">Chapter Ten</span>Who this is for, and where it heads</h2>
+
+<p>A 0.5B model fixing Rust errors is a demo. The pattern underneath it is the point, and it reads very differently depending on where you sit. So here is the same result, told three ways.</p>
+
+<h3>If you are an ML engineer</h3>
+
+<p>The transferable asset here is not the model, it is the <strong>recipe shape</strong>: cheap proposer plus perfect verifier plus bounded retry plus escalation. Wherever your domain hands you a free oracle for correctness, you can probably run this play. A compiler is the cleanest example, but the same shape fits a linter, a type checker, a test suite, a schema validator, a SQL <code>EXPLAIN</code>, a Terraform <code>plan</code>, a JSON-schema check, or a units-of-measure verifier. The skill to build is not prompt-whispering a giant model; it is <span class="lead-in">designing the loop and generating verified trajectories</span>. That skill compounds across every task with a checkable output, and it is dramatically cheaper to iterate on than a frontier fine-tune. Fifty cents and fifteen minutes bought each round here.</p>
+
+<h3>If you are an enterprise executive</h3>
+
+<p>Three numbers matter to you, and they are all real: the routine repairs run on a <strong>600MB model on a CPU you already own</strong>, they cost a fraction of a cent instead of a metered frontier API call, and <strong>your source code never leaves your infrastructure.</strong> That last one is the quiet headline. The dominant reason regulated teams cannot adopt AI coding assistance is that it means shipping proprietary or sensitive code to a third-party endpoint. A local nano model in a verified loop sidesteps the data-residency problem entirely for the common case, and escalates to an external model only for the hard minority, where you can apply policy. The frontier bill becomes a long-tail expense instead of a per-keystroke tax, and the compliance surface shrinks to the escalation path you control.</p>
+
+<div class="aside good">
+  <span class="tag">The cost inversion</span>
+  <p>The default today is "call a frontier model for every fix." This flips it: <strong>a local model owns the routine 95%, the frontier is the exception path for the hard 5%.</strong> The whole four-round experiment behind these numbers, all the GPU training included, cost under six dollars. The economics are not a rounding error on the argument; they are the argument.</p>
+</div>
+
+<h3>If you are a researcher</h3>
+
+<p>The interesting claim is not "small models are good." It is that <strong>a student can systematically surpass its own teacher</strong> when the teacher's skill is distilled into a verified loop the teacher itself never ran. The 56%-one-shot teacher produced a 72%-in-loop student. That reframes distillation from "compress a big model into a small one, losing a little" to "compress a specific skill into a small model, then let a mechanism amplify it past the source." There are clean open questions sitting right here: how far does the verified-loop amplification generalize across domains; where exactly is the capacity frontier for a given base size (my residual failures cluster suggests it is skill-shaped, not uniform); and whether RL against the same perfect reward closes the structural-insertion gap that more data would not. Every one of those is cheap to probe because the verifier makes the reward free and the frozen eval makes the claims honest.</p>
+
+<h3>Where this is heading</h3>
+
+<p>The broader industry is spending enormous effort making one very large model do everything, and that will keep mattering for open-ended reasoning. But a huge amount of day-to-day engineering is not open-ended. It is bounded, checkable, and repetitive, and that work does not need a genius on every call. It needs a competent specialist and a judge. <span class="lead-in">The future I am betting on is a fleet of tiny, cheap, private, verifiable specialists</span>, each owning one checkable domain, with the expensive general model held in reserve for the genuinely hard tail. This post is one specialist, in one language, with one verifier. The recipe is built to be language-agnostic on purpose, and SQL and Terraform recipes are next.</p>
+
+<div class="chapter-end">· · ·</div>
+
+<!-- ========== CH 11 ========== -->
+<h2 id="try"><span class="chap">Chapter Eleven</span>Run it yourself</h2>
 
 <p>The whole thing is open source under Apache-2.0: the controller, the SEARCH/REPLACE patch engine, the Rust verifier, the data generators, and every frozen eval JSON behind the numbers above. Nothing in this post is a claim you have to take on faith; each figure maps to a result file in the repo.</p>
 
