@@ -7,6 +7,8 @@
 \usepackage{amsmath}
 \usepackage{graphicx}
 \usepackage{xcolor}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.17}
 \usepackage{titlesec}
 \usepackage[hidelinks]{hyperref}
 \usepackage{enumitem}
@@ -197,9 +199,59 @@ with zero regressions on prior wins.
 To ask whether 60\% is capped by the model or the teacher, we regenerate the same
 ten failing classes (250 new verified cases) from a frontier teacher scoring
 100\% on the OOD set, merge to 739 SFT examples, and retrain. OOD rises to 72\%
-(SFT v4), now +16 points over the flash-teacher bar (Table~\ref{tab:ood}). A
+(SFT v4), now +16 points over the flash-teacher bar (Table~\ref{tab:ood};
+Figure~\ref{fig:crossover}). A
 stronger teacher is therefore a real lever on structural generalization---but a
 bounded one.
+
+\begin{figure*}[t]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+    width=0.92\textwidth, height=6.2cm,
+    xmin=-0.35, xmax=2.35, ymin=35, ymax=105,
+    xtick={0,1,2},
+    xticklabels={v2\\{\scriptsize single-site SFT}, v3\\{\scriptsize + Flash curriculum}, v4\\{\scriptsize + frontier curriculum}},
+    xticklabel style={align=center, font=\small},
+    ylabel={OOD repair rate (\%)},
+    ylabel style={font=\small},
+    ytick={40,56,60,72,84,100},
+    yticklabel style={font=\footnotesize},
+    axis lines=left,
+    enlarge x limits=0.12,
+    clip=false,
+    legend style={font=\footnotesize, at={(0.02,0.98)}, anchor=north west, draw=none, fill=none},
+    legend cell align=left,
+]
+% frontier reference lines (faint, dotted)
+\addplot[gray!55, dotted, thick, forget plot] coordinates {(-0.35,100) (2.35,100)};
+\node[gray!70, font=\scriptsize, anchor=east] at (axis cs:2.32,102.5) {frontier 100\%};
+\addplot[gray!45, dotted, forget plot] coordinates {(-0.35,84) (2.35,84)};
+\node[gray!65, font=\scriptsize, anchor=east] at (axis cs:2.32,86.3) {DeepSeek-V4 84\%};
+\addplot[gray!45, dotted, forget plot] coordinates {(-0.35,76) (2.35,76)};
+\node[gray!65, font=\scriptsize, anchor=east] at (axis cs:2.32,78.3) {grok 76\%};
+% teacher bar (the line to beat)
+\addplot[violet!70!black, dashed, very thick] coordinates {(-0.35,56) (2.35,56)};
+\addlegendentry{Gemini Flash teacher (56\%, the bar)}
+% nano model line
+\addplot[green!45!teal, very thick, mark=*, mark size=2.6pt] coordinates {(0,44) (1,60) (2,72)};
+\addlegendentry{Trained 0.5B (nano, in loop)}
+% value labels
+\node[anchor=south, font=\footnotesize\bfseries, red!70!black] at (axis cs:0,44) {44\%};
+\node[anchor=south east, font=\footnotesize\bfseries, green!45!teal] at (axis cs:1,60) {60\%};
+\node[anchor=south, font=\footnotesize\bfseries, green!45!teal] at (axis cs:2,72) {72\%};
+% crossover marker (nano line meets 56\% between v2 and v3, at x=0.75)
+\addplot[orange, only marks, mark=*, mark size=2.2pt] coordinates {(0.75,56)};
+\node[orange!85!black, font=\scriptsize, anchor=north] at (axis cs:0.75,53) {crossover: student passes teacher};
+\end{axis}
+\end{tikzpicture}
+\caption{Out-of-distribution repair accuracy across training rounds. The nano
+model (green) rises 44\,$\rightarrow$\,60\,$\rightarrow$\,72\% and crosses the
+flash-class teacher's flat 56\% bar (violet, dashed) between the v2 and v3
+rounds; frontier models are faint reference lines. In-training eval token
+accuracy stayed $\sim$0.95 across all rounds, so the climb is coverage, not fit.}
+\label{fig:crossover}
+\end{figure*}
 
 \subsection{Where the model runs out of room}
 
