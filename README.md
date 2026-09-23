@@ -65,6 +65,16 @@ repair (72% vs 56%), running on a CPU. Full results in the
 [paper](https://mailtotanvir.github.io/nano-agent/paper/nano-agent.pdf) and
 [write-up](https://mailtotanvir.github.io/nano-agent/blog.html).
 
+The second research recipe is [code-speedup](recipes/code-speedup/): a 1.5B
+student proposes restricted Python optimizations, and an independent verifier
+checks hidden-input behavior plus Cachegrind instruction references. The
+[paper](https://mailtotanvir.github.io/nano-agent/paper/code-speedup-paper.pdf),
+[Zenodo DOI](https://doi.org/10.5281/zenodo.22922767),
+[technical story](https://mailtotanvir.github.io/nano-agent/code-speedup-blog.html),
+and [v5/v6.1 adapter repository](https://huggingface.co/mailtotanvir/nano-agent-code-speed-1.5b)
+report both the gains and the semantic failures. These are separate from the
+Rust-repair model and DOI.
+
 ## The framework
 
 `nano-agent` is a **recipe framework**. The generic machinery — the agent loop,
@@ -151,6 +161,7 @@ shape-identical and every step is tool-verified.
 | Recipe | Domain | Verifier | Status |
 |---|---|---|---|
 | [`rust-repair`](recipes/rust-repair/) | Rust compile errors | `cargo check` | reference implementation |
+| [`code-speedup`](recipes/code-speedup/) | Restricted Python speedups | hidden tests + Cachegrind | 1.5B research release |
 | [`_template`](recipes/_template/) | — | — | compilable skeleton — `cp -r` to start |
 
 Planned: `sql-fix` (query validation), `tf-repair` (Terraform validate/plan).

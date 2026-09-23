@@ -1,0 +1,24 @@
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}
+\begin{axis}[width=0.86\linewidth,height=6.0cm,ybar,bar width=15pt,
+  ymin=0,ymax=32,ytick={0,10,20,30},ylabel={Successes (of 30)},
+  symbolic x coords={Seen-family,Family-heldout},xtick=data,
+  xticklabel style={font=\small},tick label style={font=\small},
+  nodes near coords,every node near coord/.append style={font=\small},
+  axis x line*=bottom,axis y line*=left,grid=major,grid style={draw=gray!18},
+  enlarge x limits=0.28,legend style={at={(0.5,-0.19)},anchor=north,draw=none,
+  legend columns=2,font=\small}]
+\addplot[fill=passgreen!75,draw=passgreen] coordinates
+  {(Seen-family,24) (Family-heldout,14)};
+\addplot[fill=deepblue!70,draw=deepblue] coordinates
+  {(Seen-family,24) (Family-heldout,16)};
+\legend{v5,v6.1}
+\end{axis}
+\end{tikzpicture}
+\caption{The two 30-case frozen tracks are separate questions. The seen-family
+totals tie; v6.1 gains two family-heldout cases. v5 was selected on development
+before v6.1's frozen measurement. These are descriptive counts, not a pooled
+60-case optimization score.}
+\label{fig:frozen}
+\end{figure}

@@ -1,0 +1,17 @@
+[package]
+name = "code-speedup-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "code-speedup"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+nano-controller.workspace = true
+nano-model-client.workspace = true
+nano-trajectory.workspace = true
+code-speedup-verifier.workspace = true

@@ -1,0 +1,24 @@
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}
+\begin{axis}[width=0.86\linewidth,height=6.2cm,ybar stacked,bar width=19pt,
+  ymin=0,ymax=18,ytick={0,4,8,12,16},ylabel={Failed cases},
+  symbolic x coords={v5-seen,v6.1-seen,v5-heldout,v6.1-heldout},xtick=data,
+  xticklabel style={rotate=20,anchor=east,font=\small},
+  tick label style={font=\small},axis x line*=bottom,axis y line*=left,
+  grid=major,grid style={draw=gray!18},enlarge x limits=0.15,
+  legend style={at={(0.5,-0.29)},anchor=north,draw=none,legend columns=2,
+  font=\small}]
+\addplot[fill=failred!72,draw=failred] coordinates
+  {(v5-seen,4) (v6.1-seen,5) (v5-heldout,15) (v6.1-heldout,13)};
+\addplot[fill=warmamber!65,draw=warmamber] coordinates
+  {(v5-seen,2) (v6.1-seen,1) (v5-heldout,1) (v6.1-heldout,1)};
+\legend{Semantic failure,Correct but not faster}
+\end{axis}
+\end{tikzpicture}
+\caption{Failure taxonomy on frozen tracks. Semantic failures include wrong
+outputs and candidate errors; ``correct but not faster'' denotes no positive
+Cachegrind reward. The 0/3 fresh diagnostic is excluded because it is a
+different, exploratory split.}
+\label{fig:failures}
+\end{figure}

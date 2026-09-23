@@ -1,0 +1,27 @@
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[node distance=4mm,>=Stealth,
+  stagebox/.style={draw=deepblue,fill=deepblue!6,rounded corners=3pt,
+    align=center,text width=2.15cm,minimum height=13mm,font=\footnotesize,
+    inner sep=2.5pt},
+  check/.style={stagebox,draw=passgreen,fill=passgreen!8},
+  arrow/.style={->,thick,draw=black!70}]
+\node[stagebox] (source) {Restricted Python\\reference};
+\node[stagebox,right=of source] (model) {1.5B LoRA\\one patch};
+\node[stagebox,right=of model] (apply) {Rust controller\\apply patch};
+\node[check,right=of apply] (correct) {Hidden-input\\correctness};
+\node[check,right=of correct] (speed) {Cachegrind $Ir$\\performance};
+\draw[arrow] (source)--(model);
+\draw[arrow] (model)--(apply);
+\draw[arrow] (apply)--(correct);
+\draw[arrow] (correct)--(speed);
+\node[align=center,text width=2.15cm,font=\scriptsize,text=failred,below=5mm of correct]
+  {Mismatch or error\\$\Rightarrow$ reject};
+\node[align=center,text width=2.15cm,font=\scriptsize,text=passgreen,below=5mm of speed]
+  {Correct and faster\\$\Rightarrow$ success};
+\end{tikzpicture}
+\caption{The one-shot verification path. Hidden inputs, private seeds, and
+known-fast source stay outside the model context. Only a correct candidate
+with positive instruction-reference reward counts as success.}
+\label{fig:boundary}
+\end{figure}

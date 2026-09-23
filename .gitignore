@@ -12,6 +12,8 @@ venv/
 
 # datasets & models (kept off git — HF Hub + OCI disk)
 recipes/*/datasets/**/*.jsonl
+recipes/code-speedup/datasets/
+recipes/code-speedup/artifacts/
 recipes/*/datasets/**/*.json
 !recipes/*/datasets/**/manifest.json
 !recipes/*/datasets/**/*provenance*.json
