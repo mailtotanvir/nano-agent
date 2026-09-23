@@ -109,6 +109,94 @@ pub fn parse_blocks(text: &str, default_file: Option<&str>) -> Result<Vec<EditBl
             i += 1;
         }
     }
+    if blocks.is_empty() {
+        // Fallback: some frontier models ignore the SEARCH/REPLACE contract and
+        // emit a well-formed unified diff in the patch field instead. Rather than
+        // reject every such proposal, convert each hunk into an equivalent
+        // SEARCH/REPLACE EditBlock (search = context+removed, replace =
+        // context+added). This keeps the model-facing prompt unchanged.
+        let unified = parse_unified_diff(text, default_file)?;
+        if !unified.is_empty() {
+            return Ok(unified);
+        }
+    }
+    Ok(blocks)
+}
+
+/// Convert a unified diff into `EditBlock`s, one per `@@` hunk. Returns an empty
+/// vector if the text contains no hunk header (so callers can treat it as "not a
+/// unified diff"). Each hunk's search text is its context + removed lines and its
+/// replace text is its context + added lines, with the single leading diff marker
+/// (` `, `-`, `+`) stripped. `\ No newline at end of file` markers are ignored.
+fn parse_unified_diff(
+    text: &str,
+    default_file: Option<&str>,
+) -> Result<Vec<EditBlock>, PatchError> {
+    let lines: Vec<&str> = text.lines().collect();
+    let mut blocks = Vec::new();
+    let mut file = default_file.map(|s| s.to_string());
+    let mut i = 0;
+    while i < lines.len() {
+        let line = lines[i];
+        if let Some(rest) = line.strip_prefix("+++ ") {
+            let name = rest.trim();
+            let name = name.strip_prefix("b/").unwrap_or(name);
+            if !name.is_empty() && name != "/dev/null" {
+                file = Some(name.to_string());
+            }
+            i += 1;
+            continue;
+        }
+        if line.starts_with("--- ") || line.starts_with("diff ") || line.starts_with("index ") {
+            i += 1;
+            continue;
+        }
+        if line.starts_with("@@") {
+            let target = file
+                .clone()
+                .ok_or_else(|| PatchError::Malformed("unified diff has no file hint".into()))?;
+            let mut search = Vec::new();
+            let mut replace = Vec::new();
+            i += 1;
+            while i < lines.len() {
+                let hunk = lines[i];
+                if hunk.starts_with("@@")
+                    || hunk.starts_with("--- ")
+                    || hunk.starts_with("+++ ")
+                    || hunk.starts_with("diff ")
+                {
+                    break;
+                }
+                if hunk.starts_with('\\') {
+                    // e.g. "\ No newline at end of file" — metadata, not content.
+                    i += 1;
+                    continue;
+                }
+                match hunk.chars().next() {
+                    Some('+') => replace.push(&hunk[1..]),
+                    Some('-') => search.push(&hunk[1..]),
+                    Some(' ') => {
+                        search.push(&hunk[1..]);
+                        replace.push(&hunk[1..]);
+                    }
+                    None => {
+                        // A truly empty line is a blank context line.
+                        search.push("");
+                        replace.push("");
+                    }
+                    _ => break,
+                }
+                i += 1;
+            }
+            blocks.push(EditBlock {
+                file: target,
+                search: search.join("\n"),
+                replace: replace.join("\n"),
+            });
+        } else {
+            i += 1;
+        }
+    }
     Ok(blocks)
 }
 
@@ -387,5 +475,42 @@ mod tests {
         let text = "<<<<<<< SEARCH\na\n>>>>>>> REPLACE\n";
         // ">>>>>>> REPLACE" appears while scanning for divider -> malformed
         assert!(parse_blocks(text, Some("f.rs")).is_err());
+    }
+
+    #[test]
+    fn parse_unified_diff_fallback() {
+        // A frontier model emits a unified diff instead of SEARCH/REPLACE.
+        let text = "--- candidate.py\n+++ candidate.py\n@@ -1,3 +1,3 @@\n def solve(xs):\n-    return slow(xs)\n+    return fast(xs)\n";
+        let blocks = parse_blocks(text, Some("candidate.py")).unwrap();
+        assert_eq!(blocks.len(), 1);
+        assert_eq!(blocks[0].file, "candidate.py");
+        assert_eq!(blocks[0].search, "def solve(xs):\n    return slow(xs)");
+        assert_eq!(blocks[0].replace, "def solve(xs):\n    return fast(xs)");
+    }
+
+    #[test]
+    fn unified_diff_applies_to_real_content() {
+        let content = "def solve(xs):\n    return slow(xs)\n";
+        let text = "@@ -1,2 +1,2 @@\n def solve(xs):\n-    return slow(xs)\n+    return fast(xs)\n";
+        let blocks = parse_blocks(text, Some("candidate.py")).unwrap();
+        let out = apply_block(content, &blocks[0], &PatchLimits::default()).unwrap();
+        assert_eq!(out.new_content, "def solve(xs):\n    return fast(xs)\n");
+    }
+
+    #[test]
+    fn search_replace_still_preferred_over_diff_lookalike() {
+        // If a valid SEARCH/REPLACE block is present, the diff path is not used.
+        let text = "<<<<<<< SEARCH\na\n=======\nb\n>>>>>>> REPLACE\n";
+        let blocks = parse_blocks(text, Some("f.rs")).unwrap();
+        assert_eq!(blocks.len(), 1);
+        assert_eq!(blocks[0].search, "a");
+        assert_eq!(blocks[0].replace, "b");
+    }
+
+    #[test]
+    fn non_diff_text_yields_no_blocks() {
+        // Plain prose with no markers and no hunk header parses to zero blocks.
+        let blocks = parse_blocks("just some reasoning, no patch here", Some("f.rs")).unwrap();
+        assert!(blocks.is_empty());
     }
 }

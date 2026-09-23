@@ -251,6 +251,11 @@ fn run_phase(
     state: &mut VerifyState,
 ) -> anyhow::Result<PhaseOutcome> {
     let mut local = 0u32;
+    // Public feedback from the most recent rejected attempt, fed back to the
+    // model so a retry can actually learn from the failure. `None` on the first
+    // attempt and whenever the previous attempt was accepted, which keeps the
+    // message stream byte-identical to the no-feedback path for that case.
+    let mut pending_feedback: Option<String> = None;
     while local < budget {
         let attempt = base_attempt + local;
 
@@ -262,7 +267,16 @@ fn run_phase(
                 messages.push(Message::assistant(p.clone()));
             }
         }
-        messages.push(Message::user(state.context.clone()));
+        // Prefer the rejected attempt's own verifier feedback (which names the
+        // failing status and shows the candidate the model just wrote) over the
+        // stale pre-attempt context, so retry-with-feedback is a real signal.
+        // This owned string is BOTH what the model is shown and what the step
+        // records, so a reconstructed multi-turn trace (repair trace) sees the
+        // exact feedback the retry consumed.
+        let user_context = pending_feedback
+            .clone()
+            .unwrap_or_else(|| state.context.clone());
+        messages.push(Message::user(user_context.clone()));
 
         let resp = model.propose(&messages);
         let (proposal, latency_ms, tokens_out, ok) = match resp {
@@ -291,7 +305,7 @@ fn run_phase(
                 attempt,
                 state.primary_code.clone(),
                 state.error_count,
-                &state.context,
+                &user_context,
                 proposal,
                 false,
                 false,
@@ -310,7 +324,7 @@ fn run_phase(
                 attempt,
                 state.primary_code.clone(),
                 state.error_count,
-                &state.context,
+                &user_context,
                 proposal,
                 false,
                 false,
@@ -338,7 +352,7 @@ fn run_phase(
                     attempt,
                     state.primary_code.clone(),
                     state.error_count,
-                    &state.context,
+                    &user_context,
                     proposal,
                     false,
                     false,
@@ -391,7 +405,7 @@ fn run_phase(
                 attempt,
                 state.primary_code.clone(),
                 state.error_count,
-                &state.context,
+                &user_context,
                 proposal,
                 false,
                 fuzzy_used,
@@ -409,6 +423,11 @@ fn run_phase(
         let new_state = verifier.verify()?;
         let regressed = cfg.regression_guard && new_state.error_count > state.error_count;
         if regressed {
+            // Capture the rejected candidate's public feedback BEFORE reverting,
+            // so the next attempt is told what actually went wrong (e.g. a
+            // candidate_error from a forbidden builtin) instead of re-seeing the
+            // stale pre-attempt context and repeating the same mistake.
+            pending_feedback = Some(new_state.context.clone());
             revert(verifier, &snapshots);
             push_step(
                 traj,
@@ -416,7 +435,7 @@ fn run_phase(
                 attempt,
                 state.primary_code.clone(),
                 state.error_count,
-                &state.context,
+                &user_context,
                 proposal,
                 true,
                 fuzzy_used,
@@ -452,6 +471,9 @@ fn run_phase(
         if new_state.passed {
             return Ok(PhaseOutcome::Terminal(Outcome::Success));
         }
+        // Accepted (not reverted): the fresh verify state carries the current
+        // context, so drop any stale rejected-attempt feedback.
+        pending_feedback = None;
         *state = new_state;
     }
 
@@ -721,5 +743,114 @@ mod tests {
         };
         let traj = drive(&spec, std::path::Path::new("."), &tiny, None, "c", "t").unwrap();
         assert_eq!(traj.outcome, Outcome::Success);
+    }
+
+    /// Verifier whose context reflects the CURRENT file content and which ranks a
+    /// candidate containing "ERR" as a regression (higher error_count) so the
+    /// controller reverts it. Passing requires the content to contain "GOOD".
+    struct FeedbackVerifier {
+        content: RefCell<String>,
+    }
+    impl Verifier for FeedbackVerifier {
+        fn command(&self) -> &str {
+            "feedback-check"
+        }
+        fn verify(&self) -> anyhow::Result<VerifyState> {
+            let c = self.content.borrow().clone();
+            let passed = c.contains("GOOD");
+            // "ERR" candidate is worst (2), plain non-passing is 1, pass is 0.
+            let error_count = if passed {
+                0
+            } else if c.contains("ERR") {
+                2
+            } else {
+                1
+            };
+            Ok(VerifyState {
+                passed,
+                error_count,
+                primary_code: if passed { None } else { Some("E".into()) },
+                codes: if passed { vec![] } else { vec!["E".into()] },
+                // Context embeds the current candidate so a retry can observe it.
+                context: format!("candidate={c}"),
+            })
+        }
+        fn read_file(&self, _rel: &str) -> anyhow::Result<String> {
+            Ok(self.content.borrow().clone())
+        }
+        fn write_file(&self, _rel: &str, content: &str) -> anyhow::Result<()> {
+            *self.content.borrow_mut() = content.to_string();
+            Ok(())
+        }
+        fn default_file(&self) -> Option<String> {
+            Some("f".into())
+        }
+    }
+
+    /// Model that records every user message it is shown and emits a scripted
+    /// patch per attempt, so a test can assert what feedback the retry received.
+    struct RecordingModel {
+        seen: RefCell<Vec<String>>,
+        patches: Vec<String>,
+        calls: RefCell<usize>,
+    }
+    impl ModelClient for RecordingModel {
+        fn name(&self) -> &str {
+            "recording"
+        }
+        fn propose(&self, messages: &[Message]) -> Result<ModelResponse, ModelError> {
+            let user = messages
+                .iter()
+                .rev()
+                .find(|m| m.role == "user")
+                .map(|m| m.content.clone())
+                .unwrap_or_default();
+            self.seen.borrow_mut().push(user);
+            let i = *self.calls.borrow();
+            *self.calls.borrow_mut() = i + 1;
+            let patch = self.patches.get(i).cloned().unwrap_or_default();
+            Ok(ModelResponse {
+                proposal: Proposal {
+                    action: "patch".into(),
+                    patch: Some(patch),
+                    reason: None,
+                    confidence: 1.0,
+                },
+                raw: String::new(),
+                latency_ms: 0,
+                tokens_out: None,
+            })
+        }
+    }
+
+    #[test]
+    fn reverted_attempt_feeds_its_verifier_feedback_into_the_retry() {
+        // Attempt 0 writes an "ERR" candidate (regression -> reverted). Attempt 1
+        // must be shown the rejected candidate's feedback (context mentioning
+        // "ERR"), not the stale pre-attempt context, then fixes it.
+        let verifier = FeedbackVerifier {
+            content: RefCell::new("START".into()),
+        };
+        let model = RecordingModel {
+            seen: RefCell::new(Vec::new()),
+            patches: vec![block("START", "ERR"), block("START", "GOOD")],
+            calls: RefCell::new(0),
+        };
+        let cfg = Config {
+            max_attempts: 3,
+            ..Default::default()
+        };
+        let traj = run_episode(&verifier, &model, &cfg, "c", "t").unwrap();
+        assert_eq!(traj.outcome, Outcome::Success);
+        let seen = model.seen.borrow();
+        assert!(seen.len() >= 2, "model should have been retried");
+        // First attempt saw the original START context.
+        assert!(seen[0].contains("candidate=START"));
+        // Retry saw the REJECTED candidate's feedback, i.e. the "ERR" content.
+        assert!(
+            seen[1].contains("ERR"),
+            "retry must receive rejected-attempt feedback, got: {}",
+            seen[1]
+        );
     }
 }

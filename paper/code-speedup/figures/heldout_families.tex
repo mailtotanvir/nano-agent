@@ -1,0 +1,25 @@
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}
+\begin{axis}[width=0.86\linewidth,height=5.8cm,ybar,bar width=15pt,
+  ymin=0,ymax=11,ytick={0,2,4,6,8,10},ylabel={Successes (of 10)},
+  symbolic x coords={String,Sort,Indexed},xtick=data,
+  xticklabels={String concat.,Sort selection,Indexed lookup},
+  tick label style={font=\small},nodes near coords,
+  every node near coord/.append style={font=\small},
+  axis x line*=bottom,axis y line*=left,grid=major,
+  grid style={draw=gray!18},enlarge x limits=0.17,
+  legend style={at={(0.5,-0.2)},anchor=north,draw=none,
+  legend columns=2,font=\small}]
+\addplot[fill=passgreen!75,draw=passgreen] coordinates
+  {(String,7) (Sort,7) (Indexed,0)};
+\addplot[fill=deepblue!70,draw=deepblue] coordinates
+  {(String,8) (Sort,8) (Indexed,0)};
+\legend{v5,v6.1}
+\end{axis}
+\end{tikzpicture}
+\caption{Family-heldout decomposition. v6.1 gains one string-concatenation
+and one sort-selection case; both adapters remain 0/10 on indexed lookup.
+Each bar is a count over ten cases, not a population estimate.}
+\label{fig:heldoutfamilies}
+\end{figure}
