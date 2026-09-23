@@ -69,6 +69,7 @@ The second research recipe is [code-speedup](recipes/code-speedup/): a 1.5B
 student proposes restricted Python optimizations, and an independent verifier
 checks hidden-input behavior plus Cachegrind instruction references. The
 [paper](https://mailtotanvir.github.io/nano-agent/paper/code-speedup-paper.pdf),
+[Zenodo DOI](https://doi.org/10.5281/zenodo.22922767),
 [technical story](https://mailtotanvir.github.io/nano-agent/code-speedup-blog.html),
 and [v5/v6.1 adapter repository](https://huggingface.co/mailtotanvir/nano-agent-code-speed-1.5b)
 report both the gains and the semantic failures. These are separate from the

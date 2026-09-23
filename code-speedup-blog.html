@@ -17,7 +17,7 @@
 </head>
 <body>
 <div id="progress" aria-hidden="true"></div>
-<div class="status">RELEASE-CANDIDATE DRAFT · NOT PUBLISHED · DOI AND MODEL LINKS PENDING</div>
+<div class="status">RESEARCH RELEASE · ONE-SHOT, RESTRICTED TASK · READ THE FAILURE BOUNDARIES</div>
 <div class="layout">
   <nav class="toc" aria-label="Article chapters"><p>Inside the experiment</p><ol>
     <li><a href="#wrong">The patch that changed the answer</a></li><li><a href="#boundary">The verification boundary</a></li><li><a href="#build">How the training data was built</a></li><li><a href="#swing">The v5 → v6 → v6.1 swing</a></li><li><a href="#anatomy">Anatomy of a semantic miss</a></li><li><a href="#frozen">The frozen tests</a></li><li><a href="#evidence">How to audit the result</a></li><li><a href="#lessons">What this taught us</a></li><li><a href="#try">Explore the code</a></li>
@@ -102,9 +102,9 @@ python3 -m pytest recipes/code-speedup/harness -v
 python3 -m ruff check recipes/code-speedup
 cargo test --workspace</code></pre>
       <p>Reproducing the published model scores also requires the exact adapter, pinned verifier image, frozen split artifacts, and model-serving setup described in the release manifest. Do not substitute the command above for a score reproduction: it checks implementation behavior, not the frozen one-shot model run. Private verifier inputs are not distributed.</p>
-      <div class="end"><span class="figure-label">The release, honestly framed</span><h2>Two variants. One boundary.</h2><p>v5 and v6.1 are equal experiment variants in a <a href="https://huggingface.co/mailtotanvir/nano-agent-code-speed-1.5b">separate code-speed Hugging Face repository</a>, without a default adapter. Read the <a href="paper/code-speedup-paper.pdf">paper</a> and <a href="https://github.com/mailtotanvir/nano-agent">source repository</a> alongside the model card and checksummed evidence: each has different strengths and failures. This is a specialist proposer in a verified loop—not a general code optimizer. The open research question is how to teach it to carry quiet local facts through a structural rewrite, so that the faster program is still <em>the same program</em>.</p></div>
+      <div class="end"><span class="figure-label">The release, honestly framed</span><h2>Two variants. One boundary.</h2><p>v5 and v6.1 are equal experiment variants in a <a href="https://huggingface.co/mailtotanvir/nano-agent-code-speed-1.5b">separate code-speed Hugging Face repository</a>, without a default adapter. Read the <a href="paper/code-speedup-paper.pdf">paper</a>, its <a href="https://doi.org/10.5281/zenodo.22922767">Zenodo DOI</a>, and the <a href="https://github.com/mailtotanvir/nano-agent">source repository</a> alongside the model card and checksummed evidence: each has different strengths and failures. This is a specialist proposer in a verified loop—not a general code optimizer. The open research question is how to teach it to carry quiet local facts through a structural rewrite, so that the faster program is still <em>the same program</em>.</p></div>
     </section>
-    <footer class="foot">Release-candidate draft. Public model, source-integration, paper/Zenodo DOI, and evidence links will be inserted after review and anonymous verification. No model or paper has been uploaded from this draft.</footer>
+    <footer class="foot">Paper: <a href="https://doi.org/10.5281/zenodo.22922767">doi:10.5281/zenodo.22922767</a> · <a href="https://huggingface.co/mailtotanvir/nano-agent-code-speed-1.5b">v5 and v6.1 adapters</a> · <a href="https://github.com/mailtotanvir/nano-agent">source and evidence</a>. Finite verifier checks are not proof of semantic equivalence.</footer>
   </article>
 </div>
 <script>

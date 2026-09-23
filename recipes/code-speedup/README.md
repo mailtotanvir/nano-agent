@@ -14,6 +14,7 @@ development, and `experiments/V6P1_FROZEN_EVALUATION_2026-09-23.md` for the
 full split-by-split report. GRPO has not run.
 
 The [paper](https://mailtotanvir.github.io/nano-agent/paper/code-speedup-paper.pdf),
+[Zenodo DOI](https://doi.org/10.5281/zenodo.22922767),
 [technical story](https://mailtotanvir.github.io/nano-agent/code-speedup-blog.html),
 and [two adapter variants](https://huggingface.co/mailtotanvir/nano-agent-code-speed-1.5b)
 give the complete release context. The original experiment plan is

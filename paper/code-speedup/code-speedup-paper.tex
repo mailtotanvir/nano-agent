@@ -1,5 +1,5 @@
 \documentclass[11pt]{article}
-\usepackage[margin=1in]{geometry}
+\usepackage[margin=0.9in]{geometry}
 \usepackage{times,microtype,booktabs,array,xcolor,tikz,pgfplots}
 \pgfplotsset{compat=1.18}
 \usetikzlibrary{arrows.meta,positioning,shapes.geometric}
@@ -11,7 +11,7 @@
 \emergencystretch=2em
 \title{The Optimization That Forgot the Question:\\Verifier-Gated Code Speedups with a 1.5B Model}
 \author{Tanvir Ahmed\\\small\url{https://github.com/mailtotanvir/nano-agent}}
-\date{September 2026\\\textbf{Release-candidate draft --- review pending}}
+\date{September 2026\\\href{https://doi.org/10.5281/zenodo.22922767}{doi:10.5281/zenodo.22922767}}
 
 \begin{document}
 \maketitle
@@ -263,24 +263,24 @@ are recorded in the release manifest and model card. GCP training archives
 were copied and hash-verified before the VMs and boot disks were deleted.
 The recorded on-demand L4 quote was \$0.856856553/hour, under a \$1.75
 two-hour authorization ceiling; actual billing is pending. Private test
-inputs are not released. Base-model license and teacher-provider terms
-require publisher review before a public upload. The teacher model identity
-is not specified in this report, so exact teacher-data regeneration is not
-claimed.
+inputs are not released. The base model is Apache-2.0 licensed; use of
+teacher-generated trajectories remains subject to provider terms. The
+teacher model identity is not specified in this report, so exact
+teacher-data regeneration is not claimed.
 
-The intended model repository presents v5 and v6.1 as equal experiment
+The model repository presents v5 and v6.1 as equal experiment
 variants, without a default adapter. Equal visibility is not a claim of
-equal performance. No Zenodo DOI or Hugging Face destination is asserted
-before a public upload is verified.
+equal performance. This paper has its own Zenodo DOI,
+\href{https://doi.org/10.5281/zenodo.22922767}{10.5281/zenodo.22922767},
+separate from the earlier Rust-repair work.
 
 \section*{Artifact statement}
-The proposed release separates LoRA adapters into \texttt{v5/} and
-\texttt{v6p1/}. The model card will link this paper, source repository, and
-split-by-split evidence. A claim--evidence matrix and SHA-256 manifest
-accompany the release draft. The Zenodo paper record is intended to contain
-only the final PDF under a new DOI. TeX and figure source, evidence manifests,
-and implementation code belong in the separate public source repository, not
-in the Zenodo file list.
+The release separates LoRA adapters into \texttt{v5/} and \texttt{v6p1/}.
+The model card links this paper, source repository, and split-by-split
+evidence. A claim--evidence matrix and SHA-256 manifest accompany the
+release. The Zenodo paper record contains only this final PDF. TeX and
+figure source, evidence manifests, and implementation code belong in the
+separate public source repository, not in the Zenodo file list.
 The companion artifacts are the \href{https://github.com/mailtotanvir/nano-agent}{source repository},
 \href{https://huggingface.co/mailtotanvir/nano-agent-code-speed-1.5b}{two adapter variants},
 and the \href{https://mailtotanvir.github.io/nano-agent/code-speedup-blog.html}{technical story}.
